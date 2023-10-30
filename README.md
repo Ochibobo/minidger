@@ -36,3 +36,4 @@
 - [ ] Statements of cashflow
 - [ ] Income statement
 - [ ] Explore Warp
+- [ ] Idempotency
