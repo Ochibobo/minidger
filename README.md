@@ -37,3 +37,6 @@
 - [ ] Income statement
 - [ ] Explore Warp
 - [ ] Idempotency
+- [ ] Percentage of CPU used
+- [ ] Amount of memory used
+- [ ] UI popover text like RedisInsight
