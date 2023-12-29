@@ -40,3 +40,7 @@
 - [ ] Percentage of CPU used
 - [ ] Amount of memory used
 - [ ] UI popover text like RedisInsight
+- [ ] LangChain, maybe? To assist in placing accounts where necessary and answer a few questions regarding them?
+- [ ] T Accounts
+- [ ] Different Balance Sheet Layouts
+- [ ] 
