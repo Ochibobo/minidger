@@ -13,6 +13,13 @@
   - [ ] Postgres
   - [ ] Redis
 - [ ] CLI/ TUI
+  - [ ] TBD
+  - [ ] Write T accounts
+  - [ ] Write Ledger
+  - [ ] Write Balance Sheet
+  - [ ] Write Cashflow Statement
+  - [ ] Write Income Statement
+  - [ ] Allow for account entry
 - [ ] Tauri desktop
 - [ ] Charts
 - [ ] Parser with new syntax

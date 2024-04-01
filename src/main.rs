@@ -1,21 +1,29 @@
+use std::fmt::Debug;
+
 use chrono::{DateTime, Utc};
+
+#[derive(Debug, PartialEq)]
+enum ActionType {
+    Increase,
+    Decrease,
+}
 
 #[derive(Debug, PartialEq)]
 struct AccountType {
     name: String,
-    on_increase: EntryType,
-    on_decrease: EntryType,
+    on_debit: ActionType,
+    on_credit: ActionType,
 }
 
 impl AccountType {
-    fn new(name: String, on_increase: EntryType, on_decrease: EntryType) -> Self {
+    fn new(name: &str, on_debit: ActionType, on_credit: ActionType) -> Self {
         // Ascertain on_increase isn't the same as on_decrease
-        if on_decrease == on_increase {
-            println!("Invalid account");
+        if on_debit == on_credit {
+            println!("Invalid account actions set. on_debit:ActionType = {:?} == on_credit:ActionType = {:?}!", on_debit, on_credit);
         }
 
         AccountType {
-            name, on_increase, on_decrease
+            name: name.to_owned(), on_debit, on_credit
         }
     }
 
@@ -23,26 +31,199 @@ impl AccountType {
         &self.name
     }
 
-    pub fn on_increase(&self) -> &EntryType {
-        &self.on_increase
+    pub fn on_debit(&self) -> &ActionType {
+        &self.on_debit
     }
 
-    pub fn on_decrease(&self) -> &EntryType {
-        &self.on_decrease
+    pub fn on_credit(&self) -> &ActionType {
+        &self.on_credit
     }
 
     pub fn set_name(&mut self, name: String) {
         self.name = name
     }
 
-    pub fn set_entry_type(&mut self, on_increase: EntryType, on_decrease: EntryType) {
-        if on_decrease == on_increase {
-            println!("Invalid account");
+    pub fn set_action_type(&mut self, on_debit: ActionType, on_credit: ActionType) {
+        if on_debit == on_credit {
+            println!("Invalid account actions set. on_debit:ActionType = {:?} == on_credit:ActionType = {:?}!", on_debit, on_credit);
             return;
         }
 
-        self.on_increase = on_increase;
-        self.on_decrease = on_decrease;
+        self.on_debit = on_debit;
+        self.on_credit = on_credit;
+    }
+}
+
+///
+/// `AccountTreeNode` trait used to build and account's relational tree
+/// Any node that's present on the account's tree is required to implement this trait
+///
+trait AccountTreeNode {
+    // Used to retrieve the level of a node
+    fn level(&self) -> usize;
+
+    // Used to set the level of a node
+    fn set_level(&mut self, level: usize);
+
+    // Used to get the parent of a node
+    fn parent(&self) -> &dyn AccountTreeNode;
+
+    // Used to set the parent of a node
+    fn set_parent(&mut self, parent: &dyn AccountTreeNode);
+}
+
+///
+/// `AccountTag` structure used to define the category an account belongs to
+///
+struct AccountTagNode {
+    level: usize,
+    name: String,
+    parent: Box<dyn AccountTreeNode>,
+    children: Vec<Box<dyn AccountTreeNode>>,
+}
+
+impl Debug for AccountTagNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl AccountTreeNode for AccountTagNode {
+    fn level(&self) -> usize {
+        return self.level;
+    }
+
+    fn set_level(&mut self, level: usize) {
+        self.level = level;
+    }
+
+    fn parent(&self) -> &dyn AccountTreeNode {
+        return self.parent.as_ref()
+    }
+
+    fn set_parent(&mut self, parent: &dyn AccountTreeNode) {
+        // self.parent = Box::<dyn AccountTreeNode>::new(parent);
+    }
+}
+
+impl AccountTagNode {
+    fn new(level: usize, name: &str, parent: Box<dyn AccountTreeNode>) -> Self {
+        let children = Vec::new();
+
+        AccountTagNode{
+            level, name: name.to_owned(), parent, children,
+        }
+    }
+
+    ///
+    /// Add a child to the `AccountTagNode`
+    /// 
+    fn add_child(&mut self, child: Box<dyn AccountTreeNode>) {
+        self.children.push(child);
+    }
+
+    ///
+    /// Get the children for this `AccountTagNode`
+    /// 
+    fn children(&self) -> &Vec<Box<dyn AccountTreeNode>> {
+        return &self.children;
+    }
+
+    ///
+    /// Get the name of the `AccountTagNode`
+    /// 
+    fn name(&self) -> &str {
+        return self.name.as_str();
+    }
+
+    ///
+    /// Set the name of the `AccountTagNode`
+    /// 
+    fn set_name(&mut self, name: &str) {
+        self.name = name.to_owned();
+    }
+}
+
+///
+/// Node representing an actual account on the `AccountTree`
+struct AccountNode {
+    level: usize,
+    name: String,
+    amount: f64,
+    parent: Box<dyn AccountTreeNode>
+}
+
+impl Debug for AccountNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl AccountTreeNode for AccountNode {
+    fn level(&self) -> usize {
+        return self.level
+    }
+
+    fn set_level(&mut self, level: usize) {
+        self.level = level
+    }
+
+    fn parent(&self) -> &dyn AccountTreeNode {
+        return self.parent.as_ref()
+    }
+
+    fn set_parent(&mut self, parent: &dyn AccountTreeNode) {
+        todo!()
+    }
+}
+
+impl AccountNode {
+    fn new(level: usize, name: &str, amount: f64, parent: Box<dyn AccountTreeNode>) -> Self {
+        AccountNode{
+            level, name: name.to_owned(), amount, parent
+        }
+    }
+
+    ///
+    /// Used to get the name of the `AccountNode`
+    /// 
+    fn name(&self) -> &str {
+        return &self.name;
+    }
+
+    ///
+    /// Used to set the name of the `AccountNode`
+    /// 
+    fn set_name(&mut self, name: &str) {
+        self.name = name.to_owned();
+    }
+
+    ///
+    /// Used to set the amount in the `AccountNode`
+    /// 
+    fn set_amount(&mut self, amount: f64) {
+        self.amount = amount
+    }
+
+    ///
+    /// Used to get the amount in the `AccountNode`
+    /// 
+    fn amount(&self) -> f64 {
+        return self.amount;
+    }
+
+    ///
+    /// Used to get the parent of the `AccountNode`
+    /// 
+    fn parent(&self) -> &dyn AccountTreeNode {
+        return self.parent.as_ref();
+    }
+
+    ///
+    /// Used to set the parent of the `AccountNode`
+    /// 
+    fn set_parent(&mut self, parent: Box<dyn AccountTreeNode>) {
+        self.parent = parent;
     }
 }
 
@@ -53,9 +234,9 @@ struct Account {
 }
 
 impl Account {
-    fn new(name: String, account_type: AccountType) -> Self {
+    fn new(name: &str, account_type: AccountType) -> Self {
         Account {
-            name, account_type
+            name: name.to_owned(), account_type
         }
     }
 
@@ -97,9 +278,9 @@ struct TransactionEntry {
 
 impl TransactionEntry {
     fn new(account: Account, amount: f64, entry_type: EntryType, 
-        date_of_entry: DateTime<Utc>, description: String) -> Self {
+        date_of_entry: DateTime<Utc>, description: &str) -> Self {
         TransactionEntry {
-            account, amount, entry_type, date_of_entry, description,
+            account, amount, entry_type, date_of_entry, description: description.to_owned(),
         }
     }
 
@@ -133,10 +314,10 @@ struct JournalEntry {
 }
 
 impl JournalEntry {
-    fn new(id: usize, date_of_entry: DateTime<Utc>, description: String) -> Self {
+    fn new(id: usize, date_of_entry: DateTime<Utc>, description: &str) -> Self {
         let transaction_entries: Vec<TransactionEntry>= Vec::new();
         JournalEntry {
-            id, transaction_entries, date_of_entry, description,
+            id, transaction_entries, date_of_entry, description: description.to_owned(),
         }
     }
 
@@ -208,10 +389,8 @@ struct Ledger {
 
 impl Ledger {
     fn new(id: usize) -> Self {
-        let journal_entries: Vec<JournalEntry> = Vec::new();
-
         Ledger{
-            id, journal_entries
+            id, journal_entries: Vec::new(),
         }
     }
 
@@ -339,20 +518,20 @@ struct CashFlowStatement {
 }
 
 fn main() {
-    let asset: AccountType = AccountType::new("Current Assets".to_owned(), EntryType::Debit, EntryType::Credit);
-    let expense: AccountType = AccountType::new("Expenses".to_owned(), EntryType::Debit, EntryType::Credit);
+    let asset: AccountType = AccountType::new("Current Assets", ActionType::Increase, ActionType::Decrease);
+    let expense: AccountType = AccountType::new("Expenses", ActionType::Increase, ActionType::Decrease);
 
-    let acc: Account = Account::new("Cash".to_owned(), asset);
+    let acc: Account = Account::new("Cash", asset);
 
     let cash_entry = TransactionEntry::new(acc, 
         400.0, EntryType::Credit, Utc::now(),
-        "Electricity expense".to_owned());
-    
-    let expense_acc: Account = Account::new("Utilities Expenses".to_owned(), expense);
+        "Electricity expense");
+        
+    let expense_acc: Account = Account::new("Utilities Expenses", expense);
     let expense_entry: TransactionEntry = TransactionEntry::new(expense_acc, 400.0, EntryType::Debit, Utc::now(),
-     "Electricity expense".to_owned());
+     "Electricity expense");
     
-    let mut journal_entry: JournalEntry = JournalEntry::new(1, Utc::now(), "We paid for electricity".to_owned());
+    let mut journal_entry: JournalEntry = JournalEntry::new(1, Utc::now(), "We paid for electricity");
     journal_entry.add_transaction_entry(cash_entry);
     journal_entry.add_transaction_entry(expense_entry);
 
