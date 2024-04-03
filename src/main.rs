@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{borrow::BorrowMut, fmt::Debug, rc::Rc};
 
 use chrono::{DateTime, Utc};
 
@@ -8,21 +8,26 @@ enum ActionType {
     Decrease,
 }
 
+///
+/// This oughts to be an iterator of Strings that can be formatted to 
+/// "Asset/Current Asset/Cash, Cash Equivalents & Short Term Investments/Cash And Cash Equivalents"
+/// from ["Assets", "Current Assets", "Cash, Cash Equivalents & Short Term Investments", "Cash And Cash Equivalents"]
+/// 
 #[derive(Debug, PartialEq)]
-struct AccountType {
+struct PrimaryAccountType {
     name: String,
     on_debit: ActionType,
     on_credit: ActionType,
 }
 
-impl AccountType {
+impl PrimaryAccountType {
     fn new(name: &str, on_debit: ActionType, on_credit: ActionType) -> Self {
         // Ascertain on_increase isn't the same as on_decrease
         if on_debit == on_credit {
             println!("Invalid account actions set. on_debit:ActionType = {:?} == on_credit:ActionType = {:?}!", on_debit, on_credit);
         }
 
-        AccountType {
+        PrimaryAccountType {
             name: name.to_owned(), on_debit, on_credit
         }
     }
@@ -64,22 +69,102 @@ trait AccountTreeNode {
 
     // Used to set the level of a node
     fn set_level(&mut self, level: usize);
-
-    // Used to get the parent of a node
-    fn parent(&self) -> &dyn AccountTreeNode;
-
-    // Used to set the parent of a node
-    fn set_parent(&mut self, parent: &dyn AccountTreeNode);
 }
 
 ///
-/// `AccountTag` structure used to define the category an account belongs to
+/// `ParentNodeT` trait used to identify certain nodes as parents
+/// 
+trait ParentNodeT {
+    // Used to add a child to the parent node
+    fn add_child(&mut self, child: Rc<dyn ChildNode>);
+
+    // USed to get the children of the parent node
+    fn children(&self) -> &Vec<Rc<dyn ChildNode>>;
+}
+
+
+///
+/// `ChildNodeT` used to identify a node as a child
+/// 
+trait ChildNodeT {
+    // Used to set a child node's parent's
+    fn set_parent(&mut self, parent: Rc<dyn ParentNode>);
+
+    // Use to get the child node's parent
+    fn parent(&self) -> &dyn ParentNode;
+}
+
+
+trait ParentNode: AccountTreeNode + ParentNodeT {}
+impl<T> ParentNode for T where T: AccountTreeNode + ParentNodeT {}
+trait ChildNode: AccountTreeNode + ChildNodeT {}
+impl<T> ChildNode for T where T: AccountTreeNode + ChildNodeT {}
+
+///
+/// The top-level node of the Accounting Tree structure
+/// 
+struct RootNode {
+    level: usize,
+    parent: Option<Rc<dyn ParentNode>>,
+    children: Vec<Rc<dyn ChildNode>>,
+}
+
+impl AccountTreeNode for RootNode {
+    fn level(&self) -> usize {
+        return self.level;
+    }
+
+    fn set_level(&mut self, level: usize) {
+        _ = level
+    }
+
+    // fn set_parent(&mut self, parent: Option<Rc<dyn AccountTreeNode>>) {
+    //     _ = parent
+    // }
+}
+
+impl ParentNodeT for RootNode {
+    ///
+    /// Add a child to the `AccountTagNode`
+    /// 
+    fn add_child(&mut self, child: Rc<dyn ChildNode>) {
+        self.children.push(child);
+    }
+
+    ///
+    /// Get the children for this `AccountTagNode`
+    /// 
+    fn children(&self) -> &Vec<Rc<dyn ChildNode>> {
+        return &self.children;
+    }
+}          
+
+impl RootNode {
+    fn new() -> Self {
+        RootNode {
+            level: 0, parent: None, children:Vec::new(),
+        }
+    }
+
+    ///
+    /// Get the parent node of the `RootNode` which is essentially `None`
+    /// 
+    fn parent(&self) -> Option<&dyn ParentNode> {
+        return self.parent.as_deref()
+    }
+}
+
+///
+/// `AccountTag` structure used to define the category an account belongs to.
+/// This node implements the `ChildNodeT`, `ParentNodeT` and `AccountTreeNode` traits.
+/// This means that this node can be a parent or a child node or both on the tree.
 ///
 struct AccountTagNode {
     level: usize,
     name: String,
-    parent: Box<dyn AccountTreeNode>,
-    children: Vec<Box<dyn AccountTreeNode>>,
+    parent: Rc<dyn ParentNode>,
+    children: Vec<Rc<dyn ChildNode>>,
+    account_type: Option<Rc<PrimaryAccountType>>,
 }
 
 impl Debug for AccountTagNode {
@@ -96,37 +181,64 @@ impl AccountTreeNode for AccountTagNode {
     fn set_level(&mut self, level: usize) {
         self.level = level;
     }
+}
 
-    fn parent(&self) -> &dyn AccountTreeNode {
+///
+/// `ChildNodeT` implementation for the `AccountTagNode`
+/// 
+impl ChildNodeT for AccountTagNode {
+    fn parent(&self) -> &dyn ParentNode {
         return self.parent.as_ref()
     }
 
-    fn set_parent(&mut self, parent: &dyn AccountTreeNode) {
-        // self.parent = Box::<dyn AccountTreeNode>::new(parent);
+    fn set_parent(&mut self, parent: Rc<dyn ParentNode>) {
+        self.parent = parent;
     }
 }
 
-impl AccountTagNode {
-    fn new(level: usize, name: &str, parent: Box<dyn AccountTreeNode>) -> Self {
-        let children = Vec::new();
 
-        AccountTagNode{
-            level, name: name.to_owned(), parent, children,
-        }
-    }
-
+///
+/// `ParentNodeT` implementation for the `AccountTagNode`
+/// 
+impl ParentNodeT for AccountTagNode {
     ///
     /// Add a child to the `AccountTagNode`
     /// 
-    fn add_child(&mut self, child: Box<dyn AccountTreeNode>) {
+    fn add_child(&mut self, child: Rc<dyn ChildNode>) {
         self.children.push(child);
     }
 
     ///
     /// Get the children for this `AccountTagNode`
     /// 
-    fn children(&self) -> &Vec<Box<dyn AccountTreeNode>> {
+    fn children(&self) -> &Vec<Rc<dyn ChildNode>> {
         return &self.children;
+    }
+}
+
+impl AccountTagNode {
+    fn new(level: usize, name: &str, parent: Rc<dyn ParentNode>, account_type: Option<Rc<PrimaryAccountType>>) -> Self {
+        let children = Vec::new();
+        let account_tag_node: AccountTagNode;
+
+        // Add this as a child to the passed parent node
+        if level != 1 {
+            account_tag_node = AccountTagNode{
+                level, name: name.to_owned(), parent, children, account_type: None,
+            }
+        } else {
+            // Confirm that if the level == 1, an associated account_type exists
+            match account_type {
+                None => panic!("Level 1 nodes cannot miss an associated account type"),
+                Some(account_type) => {
+                    account_tag_node =  AccountTagNode{
+                        level, name: name.to_owned(), parent, children, account_type: Some(account_type.clone()),
+                    }
+                }
+            }
+        }
+
+        return account_tag_node;
     }
 
     ///
@@ -142,15 +254,34 @@ impl AccountTagNode {
     fn set_name(&mut self, name: &str) {
         self.name = name.to_owned();
     }
+
+    ///
+    /// Get the `PrimaryAccountType` of this tag node
+    /// 
+    fn account_type(&self) -> &Option<Rc<PrimaryAccountType>> {
+        return &self.account_type
+    }
+
+    ///
+    /// Set the `PrimaryAccountType` of this tag node
+    /// Only level 1 account nodes can get PrimaryAccoutType set.
+    /// 
+    fn set_account_type(&mut self, account_type: Rc<PrimaryAccountType>) {
+        if self.level == 1 {
+            self.account_type = Some(account_type.clone());
+        }
+    }
 }
 
 ///
-/// Node representing an actual account on the `AccountTree`
+/// Node representing an actual account on the `AccountTree`.
+/// This node only implements the `AccountTreeNode` and `ChildNodeT` traits as it can only be a terminal child node.
+/// 
 struct AccountNode {
     level: usize,
     name: String,
     amount: f64,
-    parent: Box<dyn AccountTreeNode>
+    parent: Rc<dyn ParentNode>
 }
 
 impl Debug for AccountNode {
@@ -167,18 +298,23 @@ impl AccountTreeNode for AccountNode {
     fn set_level(&mut self, level: usize) {
         self.level = level
     }
+}
 
-    fn parent(&self) -> &dyn AccountTreeNode {
+///
+/// `ChildNodeT` implementation for the `AccountNode`
+/// 
+impl ChildNodeT for AccountNode {
+    fn parent(&self) -> &dyn ParentNode {
         return self.parent.as_ref()
     }
 
-    fn set_parent(&mut self, parent: &dyn AccountTreeNode) {
-        todo!()
+    fn set_parent(&mut self, parent: Rc<dyn ParentNode>) {
+        self.parent = parent;
     }
 }
 
 impl AccountNode {
-    fn new(level: usize, name: &str, amount: f64, parent: Box<dyn AccountTreeNode>) -> Self {
+    fn new(level: usize, name: &str, amount: f64, parent: Rc<dyn ParentNode>) -> Self {
         AccountNode{
             level, name: name.to_owned(), amount, parent
         }
@@ -211,32 +347,18 @@ impl AccountNode {
     fn amount(&self) -> f64 {
         return self.amount;
     }
-
-    ///
-    /// Used to get the parent of the `AccountNode`
-    /// 
-    fn parent(&self) -> &dyn AccountTreeNode {
-        return self.parent.as_ref();
-    }
-
-    ///
-    /// Used to set the parent of the `AccountNode`
-    /// 
-    fn set_parent(&mut self, parent: Box<dyn AccountTreeNode>) {
-        self.parent = parent;
-    }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 struct Account {
     name: String,
-    account_type: AccountType,
+    account_tag: Rc<AccountTagNode>,
 }
 
 impl Account {
-    fn new(name: &str, account_type: AccountType) -> Self {
+    fn new(name: &str, account_tag: Rc<AccountTagNode>) -> Self {
         Account {
-            name: name.to_owned(), account_type
+            name: name.to_owned(), account_tag
         }
     }
 
@@ -245,16 +367,16 @@ impl Account {
         &self.name
     }
 
-    pub fn account_type(&self) -> &AccountType{
-        &self.account_type
+    pub fn account_type(&self) -> &AccountTagNode{
+        self.account_tag.as_ref()
     }
 
     pub fn set_name(&mut self, name: String){
         self.name = name
     }
 
-    pub fn set_account_type(&mut self, account_type: AccountType){
-        self.account_type = account_type
+    pub fn set_account_type(&mut self, account_tag: Rc<AccountTagNode>){
+        self.account_tag = account_tag
     }
 }
 
@@ -518,35 +640,49 @@ struct CashFlowStatement {
 }
 
 fn main() {
-    let asset: AccountType = AccountType::new("Current Assets", ActionType::Increase, ActionType::Decrease);
-    let expense: AccountType = AccountType::new("Expenses", ActionType::Increase, ActionType::Decrease);
+    let asset: Rc<PrimaryAccountType> = Rc::new(
+        PrimaryAccountType::new("Assets", ActionType::Increase, ActionType::Decrease)
+    );
+    let expense: Rc<PrimaryAccountType> = Rc::new(
+        PrimaryAccountType::new("Expenses", ActionType::Increase, ActionType::Decrease)
+    );
 
-    let acc: Account = Account::new("Cash", asset);
+    let root: Rc<RootNode> = Rc::new(RootNode::new());
 
-    let cash_entry = TransactionEntry::new(acc, 
-        400.0, EntryType::Credit, Utc::now(),
-        "Electricity expense");
+    let asset_node = Rc::new(
+        AccountTagNode::new(1, "Asset", root.clone(), Some(asset.clone())));
+    
+    let current_assets_node = Rc::new(
+        AccountTagNode::new(2, "Current Assets",asset_node.clone(), None)
+    );
+
+    let k = asset_node;
+    // let acc: Account = Account::new("Cash", asset);asset
+
+    // let cash_entry = TransactionEntry::new(acc, 
+    //     400.0, EntryType::Credit, Utc::now(),
+    //     "Electricity expense");
         
-    let expense_acc: Account = Account::new("Utilities Expenses", expense);
-    let expense_entry: TransactionEntry = TransactionEntry::new(expense_acc, 400.0, EntryType::Debit, Utc::now(),
-     "Electricity expense");
+    // let expense_acc: Account = Account::new("Utilities Expenses", expense);
+    // let expense_entry: TransactionEntry = TransactionEntry::new(expense_acc, 400.0, EntryType::Debit, Utc::now(),
+    //  "Electricity expense");
     
-    let mut journal_entry: JournalEntry = JournalEntry::new(1, Utc::now(), "We paid for electricity");
-    journal_entry.add_transaction_entry(cash_entry);
-    journal_entry.add_transaction_entry(expense_entry);
+    // let mut journal_entry: JournalEntry = JournalEntry::new(1, Utc::now(), "We paid for electricity");
+    // journal_entry.add_transaction_entry(cash_entry);
+    // journal_entry.add_transaction_entry(expense_entry);
 
-    println!("{:?}", journal_entry);
+    // println!("{:?}", journal_entry);
 
-    let is_journal_valid = journal_entry.validate();
+    // let is_journal_valid = journal_entry.validate();
 
-    println!("{:?}", is_journal_valid);
+    // println!("{:?}", is_journal_valid);
 
-    let mut ledger: Ledger = Ledger::new(1);
-    ledger.add_journal_entry(journal_entry);
+    // let mut ledger: Ledger = Ledger::new(1);
+    // ledger.add_journal_entry(journal_entry);
     
-    let entry = ledger.get_journal_entry_by_id(1);
-    let entry = entry.unwrap();
+    // let entry = ledger.get_journal_entry_by_id(1);
+    // let entry = entry.unwrap();
 
-    println!("{:?}", entry);
+    // println!("{:?}", entry);
 }
 

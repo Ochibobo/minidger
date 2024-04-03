@@ -141,6 +141,31 @@ Generally, there are 6 types of accounts:
   - Use PartialOrd to determine which subtree comes first etc
 
 - Think of splitting parent trait
+  - Add a child trait
+    - When one sets a node's parent, add to the parent this node as a child
+    - When one add's a node as the child of another:
+      - Check if parent is already set.
+      - If set, throw an error
+      - If not, set the parent to this parent
+      - Add method to set_parent
   - This ensures the terminal AccountNodes cannot be parents
   - Do I really need levels?
     - Think about traversal
+
+- Account Type is an `Iterator` - No Need
+- Read about Rc, RefCell, Box and Interior Mutability in Rust
+
+
+###### std::cell
+- Shareble mutable container
+- RefCell & Mutex are here too
+- Provide interior mutability
+- You can replace, change and get a copy of a value inside a cell
+  - That's why it's always safe to change it
+  - No-one else has a pointer to it
+- Does not represent Sync
+  - Reference cannot be given to another thread
+- Rc<T> only allows immutable borrows
+- Only compatible with types that implement `Copy`
+
+- Look into adding a `RefCell` to the relevant nodes.
