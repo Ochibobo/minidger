@@ -1,4 +1,4 @@
-use std::{borrow::BorrowMut, fmt::Debug, rc::Rc};
+use std::{borrow::Borrow, cell::RefCell, fmt::Debug, rc::Rc};
 
 use chrono::{DateTime, Utc};
 
@@ -76,10 +76,10 @@ trait AccountTreeNode {
 /// 
 trait ParentNodeT {
     // Used to add a child to the parent node
-    fn add_child(&mut self, child: Rc<dyn ChildNode>);
+    fn add_child(&mut self, child: Rc<RefCell<dyn ChildNode>>);
 
-    // USed to get the children of the parent node
-    fn children(&self) -> &Vec<Rc<dyn ChildNode>>;
+    // Used to get the children of the parent node
+    fn children(&self) -> &Vec<Rc<RefCell<dyn ChildNode>>>;
 }
 
 
@@ -88,17 +88,17 @@ trait ParentNodeT {
 /// 
 trait ChildNodeT {
     // Used to set a child node's parent's
-    fn set_parent(&mut self, parent: Rc<dyn ParentNode>);
+    fn set_parent(&mut self, parent: Rc<RefCell<dyn ParentNode>>);
 
     // Use to get the child node's parent
-    fn parent(&self) -> &dyn ParentNode;
+    fn parent(&self) -> &RefCell<dyn ParentNode>;
 }
 
 
 trait ParentNode: AccountTreeNode + ParentNodeT {}
 impl<T> ParentNode for T where T: AccountTreeNode + ParentNodeT {}
-trait ChildNode: AccountTreeNode + ChildNodeT {}
-impl<T> ChildNode for T where T: AccountTreeNode + ChildNodeT {}
+trait ChildNode: AccountTreeNode + ChildNodeT + Debug {}
+impl<T> ChildNode for T where T: AccountTreeNode + ChildNodeT + Debug {}
 
 ///
 /// The top-level node of the Accounting Tree structure
@@ -106,7 +106,7 @@ impl<T> ChildNode for T where T: AccountTreeNode + ChildNodeT {}
 struct RootNode {
     level: usize,
     parent: Option<Rc<dyn ParentNode>>,
-    children: Vec<Rc<dyn ChildNode>>,
+    children: Vec<Rc<RefCell<dyn ChildNode>>>,
 }
 
 impl AccountTreeNode for RootNode {
@@ -117,24 +117,20 @@ impl AccountTreeNode for RootNode {
     fn set_level(&mut self, level: usize) {
         _ = level
     }
-
-    // fn set_parent(&mut self, parent: Option<Rc<dyn AccountTreeNode>>) {
-    //     _ = parent
-    // }
 }
 
 impl ParentNodeT for RootNode {
     ///
     /// Add a child to the `AccountTagNode`
     /// 
-    fn add_child(&mut self, child: Rc<dyn ChildNode>) {
+    fn add_child(&mut self, child: Rc<RefCell<dyn ChildNode>>) {
         self.children.push(child);
     }
 
     ///
     /// Get the children for this `AccountTagNode`
     /// 
-    fn children(&self) -> &Vec<Rc<dyn ChildNode>> {
+    fn children(&self) -> &Vec<Rc<RefCell<dyn ChildNode>>> {
         return &self.children;
     }
 }          
@@ -162,8 +158,8 @@ impl RootNode {
 struct AccountTagNode {
     level: usize,
     name: String,
-    parent: Rc<dyn ParentNode>,
-    children: Vec<Rc<dyn ChildNode>>,
+    parent: Rc<RefCell<dyn ParentNode>>,
+    children: Vec<Rc<RefCell<dyn ChildNode>>>,
     account_type: Option<Rc<PrimaryAccountType>>,
 }
 
@@ -187,11 +183,11 @@ impl AccountTreeNode for AccountTagNode {
 /// `ChildNodeT` implementation for the `AccountTagNode`
 /// 
 impl ChildNodeT for AccountTagNode {
-    fn parent(&self) -> &dyn ParentNode {
-        return self.parent.as_ref()
+    fn parent(&self) -> &RefCell<dyn ParentNode> {
+        return self.parent.as_ref();
     }
 
-    fn set_parent(&mut self, parent: Rc<dyn ParentNode>) {
+    fn set_parent(&mut self, parent: Rc<RefCell<dyn ParentNode>>) {
         self.parent = parent;
     }
 }
@@ -204,20 +200,20 @@ impl ParentNodeT for AccountTagNode {
     ///
     /// Add a child to the `AccountTagNode`
     /// 
-    fn add_child(&mut self, child: Rc<dyn ChildNode>) {
+    fn add_child(&mut self, child: Rc<RefCell<dyn ChildNode>>) {
         self.children.push(child);
     }
 
     ///
     /// Get the children for this `AccountTagNode`
     /// 
-    fn children(&self) -> &Vec<Rc<dyn ChildNode>> {
+    fn children(&self) -> &Vec<Rc<RefCell<dyn ChildNode>>> {
         return &self.children;
     }
 }
 
 impl AccountTagNode {
-    fn new(level: usize, name: &str, parent: Rc<dyn ParentNode>, account_type: Option<Rc<PrimaryAccountType>>) -> Self {
+    fn new(level: usize, name: &str, parent: Rc<RefCell<dyn ParentNode>>, account_type: Option<Rc<PrimaryAccountType>>) -> Self {
         let children = Vec::new();
         let account_tag_node: AccountTagNode;
 
@@ -281,7 +277,7 @@ struct AccountNode {
     level: usize,
     name: String,
     amount: f64,
-    parent: Rc<dyn ParentNode>
+    parent: Rc<RefCell<dyn ParentNode>>
 }
 
 impl Debug for AccountNode {
@@ -304,17 +300,17 @@ impl AccountTreeNode for AccountNode {
 /// `ChildNodeT` implementation for the `AccountNode`
 /// 
 impl ChildNodeT for AccountNode {
-    fn parent(&self) -> &dyn ParentNode {
+    fn parent(&self) -> &RefCell<dyn ParentNode> {
         return self.parent.as_ref()
     }
 
-    fn set_parent(&mut self, parent: Rc<dyn ParentNode>) {
+    fn set_parent(&mut self, parent: Rc<RefCell<dyn ParentNode>>) {
         self.parent = parent;
     }
 }
 
 impl AccountNode {
-    fn new(level: usize, name: &str, amount: f64, parent: Rc<dyn ParentNode>) -> Self {
+    fn new(level: usize, name: &str, amount: f64, parent: Rc<RefCell<dyn ParentNode>>) -> Self {
         AccountNode{
             level, name: name.to_owned(), amount, parent
         }
@@ -647,16 +643,19 @@ fn main() {
         PrimaryAccountType::new("Expenses", ActionType::Increase, ActionType::Decrease)
     );
 
-    let root: Rc<RootNode> = Rc::new(RootNode::new());
+    let root: Rc<RefCell<RootNode>> = Rc::new(RefCell::new(RootNode::new()));
 
     let asset_node = Rc::new(
-        AccountTagNode::new(1, "Asset", root.clone(), Some(asset.clone())));
+        RefCell::new(AccountTagNode::new(1, "Asset", root.clone(), Some(asset.clone()))));
     
     let current_assets_node = Rc::new(
-        AccountTagNode::new(2, "Current Assets",asset_node.clone(), None)
+        RefCell::new(AccountTagNode::new(2, "Current Assets",asset_node.clone(), None))
     );
 
-    let k = asset_node;
+    let mut asset_n = asset_node.as_ref().borrow_mut();
+    asset_n.add_child(current_assets_node);
+
+    println!("Children of AssetNode are: {:?}", asset_n.children());
     // let acc: Account = Account::new("Cash", asset);asset
 
     // let cash_entry = TransactionEntry::new(acc, 
