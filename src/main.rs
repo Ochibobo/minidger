@@ -87,7 +87,7 @@ trait AccountTreeNode {
     ///
     /// Used to get the account_type of this tree node
     ///
-    fn account_type(&self) -> &Option<Rc<PrimaryAccountType>>;
+    fn account_type(&self) -> Option<Rc<PrimaryAccountType>>;
 
     ///
     ///  Used to set a child node's parent's
@@ -199,8 +199,8 @@ impl AccountTreeNode for RootNode {
         self.name = name.to_owned()
     }
 
-    fn account_type(&self) -> &Option<Rc<PrimaryAccountType>> {
-        return &None
+    fn account_type(&self) -> Option<Rc<PrimaryAccountType>> {
+        return None
     }
 
     // Used to set a child node's parent's
@@ -284,27 +284,26 @@ impl AccountTreeNode for AccountTagNode {
     ///
     /// Get the `PrimaryAccountType` of this tag node
     /// 
-    fn account_type(&self) -> &Option<Rc<PrimaryAccountType>> {
+    fn account_type(&self) -> Option<Rc<PrimaryAccountType>> {
         println!("{:?}", self.level);
         // Root nodes and level-1 nodes have a direct access to their account types
         if self.level <= 1 {
-            return &self.account_type
+            todo!();
+            return Some(self.account_type.unwrap().clone().to_owned());
         }
 
         let mut parent_node = self.parent.as_ref();
 
         while parent_node.unwrap().borrow().level() != 1 {
             match parent_node {
-                None => { return &None; },
+                None => { return None; },
                 Some(p_node) => {
                     parent_node = Some(p_node);
                 }
             }
         }
-        let res =  parent_node.unwrap().borrow();
-        let res = res.account_type();
-        println!("AccountType: {:?}", res.as_ref().unwrap());
-        return &self.account_type;
+        let res =  parent_node.unwrap();
+        return res.borrow().account_type().to_owned();
     }
 
     // Used to set a child node's parent's
@@ -444,8 +443,8 @@ impl AccountTreeNode for AccountNode {
     ///
     /// Get the `PrimaryAccountType` of this tag node
     /// 
-    fn account_type(&self) -> &Option<Rc<PrimaryAccountType>> {
-        return &None
+    fn account_type(&self) -> Option<Rc<PrimaryAccountType>> {
+        return None
     }
 }
 
