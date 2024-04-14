@@ -287,3 +287,48 @@
 // let entry = entry.unwrap();
 
 // println!("{:?}", entry);
+
+
+// #[derive(Debug)]
+// struct Account {
+//     name: String,
+//     account_tag: Rc<AccountTagNode>,
+// }
+
+// impl Account {
+//     fn new(name: &str, account_tag: Rc<AccountTagNode>) -> Self {
+//         Account {
+//             name: name.to_owned(), account_tag
+//         }
+//     }
+
+//     // Get the account name
+//     pub fn name(&self) -> &str {
+//         &self.name
+//     }
+
+//     pub fn account_type(&self) -> &AccountTagNode{
+//         self.account_tag.as_ref()
+//     }
+
+//     pub fn set_name(&mut self, name: String){
+//         self.name = name
+//     }
+
+//     pub fn set_account_type(&mut self, account_tag: Rc<AccountTagNode>){
+//         self.account_tag = account_tag
+//     }
+
+//     ///
+//     /// Get the `PrimaryAccountType` of this account
+//     /// 
+//     fn primary_account(&self) -> &Option<PrimaryAccountType> {
+//         let mut parent_tag= self.account_tag.as_ref();
+
+//         while parent_tag.level() != 1 {
+//             let parent_tag = parent_tag.parent();
+//         }
+        
+//         return &None;
+//     }
+// }

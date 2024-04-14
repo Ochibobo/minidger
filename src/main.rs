@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fmt::Debug, rc::Rc};
+use std::{cell::RefCell, fmt::Debug, path::Iter, rc::Rc};
 
 #[derive(Debug, PartialEq)]
 enum ActionType {
@@ -87,7 +87,7 @@ trait AccountTreeNode {
     ///
     /// Used to get the account_type of this tree node
     ///
-    fn account_type(&self) -> Option<Rc<PrimaryAccountType>>;
+    fn account_type(&self) -> &Option<Rc<PrimaryAccountType>>;
 
     ///
     ///  Used to set a child node's parent's
@@ -113,10 +113,10 @@ impl Debug for dyn AccountTreeNode {
 /// 
 trait ParentNodeT {
     // Used to add a child to the parent node
-    fn add_child(&mut self, child: Rc<RefCell<dyn AccountTreeNode>>);
+    fn add_child(&mut self, child: Rc<RefCell<dyn ParentNode>>);
 
     // Used to get the children of the parent node
-    fn children(&self) -> &Vec<Rc<RefCell<dyn AccountTreeNode>>>;
+    fn children(&self) -> &Vec<Rc<RefCell<dyn ParentNode>>>;
 }
 
 ///
@@ -153,24 +153,21 @@ impl Debug for dyn ParentNode {
     }
 }
 
+///
+/// A wrapper for a reference to a struct that implements the `ParentNode` trait
+/// 
+type ParentNodeRef = Rc<RefCell<dyn ParentNode>>;
 
 ///
-/// `ChildNode` trait that marks a node as being able to have a `Parent` which
-/// it falls under
+/// A wrapper for a reference to a struct that implements the `AccountTreeNode` trait
 /// 
-// trait ChildNode: AccountTreeNode + ChildNodeT {}
+type AccountTreeNodeRef = Rc<RefCell<dyn AccountTreeNode>>;
 
 
-// ///
-// /// `ChildNode` implementation of the `AccountTreeNode` and `ChildNodeT` traits
-// /// 
-// impl<T> ChildNode for T where T: AccountTreeNode + ChildNodeT {}
-
-// impl Debug for dyn ChildNode {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         write!(f, "{{name: {:?}, level: {:?}, parent: {:?}}}", self.name(), self.level(), self.parent());
-//     }
-// }
+///
+/// A wrapper for a reference to the `RootNode` struct
+/// 
+type RootNodeRef = Rc<RefCell<RootNode>>;
 
 ///
 /// The top-level node of the Accounting Tree structure
@@ -178,8 +175,8 @@ impl Debug for dyn ParentNode {
 struct RootNode {
     level: usize,
     name: String,
-    parent: Option<Rc<RefCell<dyn ParentNode>>>,
-    children: Vec<Rc<RefCell<dyn AccountTreeNode>>>,
+    parent: Option<ParentNodeRef>,
+    children: Vec<ParentNodeRef>,
 }
 
 impl AccountTreeNode for RootNode {
@@ -199,8 +196,8 @@ impl AccountTreeNode for RootNode {
         self.name = name.to_owned()
     }
 
-    fn account_type(&self) -> Option<Rc<PrimaryAccountType>> {
-        return None
+    fn account_type(&self) -> &Option<Rc<PrimaryAccountType>> {
+        return &None
     }
 
     // Used to set a child node's parent's
@@ -218,17 +215,17 @@ impl ParentNodeT for RootNode {
     ///
     /// Add a child to the `AccountTagNode`
     /// 
-    fn add_child(&mut self, child: Rc<RefCell<dyn AccountTreeNode>>) {
+    fn add_child(&mut self, child: ParentNodeRef) {
         self.children.push(child);
     }
 
     ///
     /// Get the children for this `AccountTagNode`
     /// 
-    fn children(&self) -> &Vec<Rc<RefCell<dyn AccountTreeNode>>> {
+    fn children(&self) -> &Vec<ParentNodeRef> {
         return &self.children;
     }
-}          
+}
 
 impl RootNode {
     fn new() -> Self {
@@ -246,8 +243,8 @@ impl RootNode {
 struct AccountTagNode {
     level: usize,
     name: String,
-    parent: Option<Rc<RefCell<dyn ParentNode>>>,
-    children: Vec<Rc<RefCell<dyn AccountTreeNode>>>,
+    parent: Option<ParentNodeRef>,
+    children: Vec<ParentNodeRef>,
     account_type: Option<Rc<PrimaryAccountType>>,
 }
 
@@ -284,26 +281,8 @@ impl AccountTreeNode for AccountTagNode {
     ///
     /// Get the `PrimaryAccountType` of this tag node
     /// 
-    fn account_type(&self) -> Option<Rc<PrimaryAccountType>> {
-        println!("{:?}", self.level);
-        // Root nodes and level-1 nodes have a direct access to their account types
-        if self.level <= 1 {
-            todo!();
-            return Some(self.account_type.unwrap().clone().to_owned());
-        }
-
-        let mut parent_node = self.parent.as_ref();
-
-        while parent_node.unwrap().borrow().level() != 1 {
-            match parent_node {
-                None => { return None; },
-                Some(p_node) => {
-                    parent_node = Some(p_node);
-                }
-            }
-        }
-        let res =  parent_node.unwrap();
-        return res.borrow().account_type().to_owned();
+    fn account_type(&self) -> &Option<Rc<PrimaryAccountType>> {
+        return &self.account_type;
     }
 
     // Used to set a child node's parent's
@@ -318,34 +297,20 @@ impl AccountTreeNode for AccountTagNode {
 }
 
 ///
-/// `ChildNodeT` implementation for the `AccountTagNode`
-/// 
-// impl ChildNodeT for AccountTagNode {
-//     fn parent(&self) -> &RefCell<dyn ParentNode> {
-//         return self.parent.as_ref();
-//     }
-
-//     fn set_parent(&mut self, parent: Rc<RefCell<dyn ParentNode>>) {
-//         self.parent = parent;
-//     }
-// }
-
-
-///
 /// `ParentNodeT` implementation for the `AccountTagNode`
 /// 
 impl ParentNodeT for AccountTagNode {
     ///
     /// Add a child to the `AccountTagNode`
     /// 
-    fn add_child(&mut self, child: Rc<RefCell<dyn AccountTreeNode>>) {
+    fn add_child(&mut self, child: ParentNodeRef) {
         self.children.push(child);
     }
 
     ///
     /// Get the children for this `AccountTagNode`
     /// 
-    fn children(&self) -> &Vec<Rc<RefCell<dyn AccountTreeNode>>> {
+    fn children(&self) -> &Vec<ParentNodeRef> {
         return &self.children;
     }
 }
@@ -355,10 +320,35 @@ impl AccountTagNode {
         let children = Vec::new();
         let account_tag_node: AccountTagNode;
 
-        // Add this as a child to the passed parent node
-        if level != 1 {
+        // Panic if the level passed is less than one
+        if level < 1 {
+            panic!("Cannot have an AccountTagNode whose level {:?} is < 1.", level);
+        } else if level > 1 {
+            let mut _parent_ref = parent.clone().unwrap().clone();
+
+            while _parent_ref.as_ref().borrow().level() != 1 {
+                _parent_ref = {
+                    // Borrow the parent reference
+                    let parent_ref_borrowed = _parent_ref.as_ref().borrow();
+                    // Get the parent
+                    let parent = parent_ref_borrowed.parent().clone();
+                    let parent_to_return: ParentNodeRef;
+                    match parent {
+                        None => { panic!("");},
+                        Some(parent_unwrapped) => {
+                            parent_to_return = parent_unwrapped.clone();
+                        }
+                    }
+
+                    parent_to_return
+                }
+            }
+
+            let tmp_acc_type = _parent_ref.as_ref().borrow();
+            let tmp_acc_type = tmp_acc_type.account_type();
+
             account_tag_node = AccountTagNode{
-                level, name: name.to_owned(), parent, children, account_type: None,
+                level, name: name.to_owned(), parent, children, account_type: tmp_acc_type.to_owned(),
             }
         } else {
             // Confirm that if the level == 1, an associated account_type exists
@@ -374,16 +364,6 @@ impl AccountTagNode {
 
         return account_tag_node;
     }
-
-    ///
-    /// Set the `PrimaryAccountType` of this tag node
-    /// Only level 1 account nodes can get PrimaryAccoutType set.
-    /// 
-    fn set_account_type(&mut self, account_type: Rc<PrimaryAccountType>) {
-        if self.level == 1 {
-            self.account_type = Some(account_type.clone());
-        }
-    }
 }
 
 ///
@@ -394,7 +374,9 @@ struct AccountNode {
     level: usize,
     name: String,
     amount: f64,
-    parent: Option<Rc<RefCell<dyn ParentNode>>>
+    parent: Option<ParentNodeRef>,
+    children: Vec<ParentNodeRef>,
+    account_type: Option<Rc<PrimaryAccountType>>,
 }
 
 impl Debug for AccountNode {
@@ -429,42 +411,48 @@ impl AccountTreeNode for AccountNode {
     ///
     ///  Used to set a child node's parent's
     /// 
-    fn set_parent(&mut self, parent: Option<Rc<RefCell<dyn ParentNode>>>) {
+    fn set_parent(&mut self, parent: Option<ParentNodeRef>) {
         _ = parent;
     }
 
     ///
     ///  Use to get the child node's parentOption
     /// 
-    fn parent(&self) -> &Option<Rc<RefCell<dyn ParentNode>>> {
+    fn parent(&self) -> &Option<ParentNodeRef> {
         return &self.parent;
     }
 
     ///
     /// Get the `PrimaryAccountType` of this tag node
     /// 
-    fn account_type(&self) -> Option<Rc<PrimaryAccountType>> {
-        return None
+    fn account_type(&self) -> &Option<Rc<PrimaryAccountType>> {
+        return &self.account_type;
     }
 }
 
-///
-/// `ChildNodeT` implementation for the `AccountNode`
-/// 
-// impl ChildNodeT for AccountNode {
-//     fn parent(&self) -> &RefCell<dyn ParentNode> {
-//         return self.parent.as_ref()
-//     }
 
-//     fn set_parent(&mut self, parent: Rc<RefCell<dyn ParentNode>>) {
-//         self.parent = parent;
-//     }
-// }
+impl ParentNodeT for AccountNode {
+    fn add_child(&mut self, child: ParentNodeRef) {
+        _ = child
+    }
+
+    fn children(&self) -> &Vec<ParentNodeRef> {
+        return &self.children;
+    }
+}
 
 impl AccountNode {
     fn new(level: usize, name: &str, amount: f64, parent: Option<Rc<RefCell<dyn ParentNode>>>) -> Self {
+        // Get a clone of the parent
+        let parent_ref = parent.clone().unwrap().clone();
+        // Retrieve the account type of the parent and return it
+        let parent_account_type = {
+            let borrowed_ref = parent_ref.borrow();
+            borrowed_ref.account_type().to_owned()
+        };
+
         AccountNode{
-            level, name: name.to_owned(), amount, parent
+            level, name: name.to_owned(), amount, parent, children: Vec::new(), account_type: parent_account_type,
         }
     }
 
@@ -483,47 +471,110 @@ impl AccountNode {
     }
 }
 
-#[derive(Debug)]
-struct Account {
-    name: String,
-    account_tag: Rc<AccountTagNode>,
+
+///
+/// `AccountTree` that holds the entire structure of the relation between different accounts.
+/// It contains a single reference to the `RootNode` of the particular account structure
+/// 
+struct AccountTree {
+    root: RootNode
 }
 
-impl Account {
-    fn new(name: &str, account_tag: Rc<AccountTagNode>) -> Self {
-        Account {
-            name: name.to_owned(), account_tag
+
+///
+/// `Ancestors` structure to get the parent of the current node upto the parent level
+/// 
+struct Ancestors{
+    source:ParentNodeRef,
+}
+
+impl Ancestors {
+    fn new(source: ParentNodeRef) -> Self {
+        Ancestors {
+            source
         }
-    }
-
-    // Get the account name
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn account_type(&self) -> &AccountTagNode{
-        self.account_tag.as_ref()
-    }
-
-    pub fn set_name(&mut self, name: String){
-        self.name = name
-    }
-
-    pub fn set_account_type(&mut self, account_tag: Rc<AccountTagNode>){
-        self.account_tag = account_tag
     }
 
     ///
-    /// Get the `PrimaryAccountType` of this account
+    /// Used to update the `source` of  the `Ancestors` struct
     /// 
-    fn primary_account(&self) -> &Option<PrimaryAccountType> {
-        let mut parent_tag= self.account_tag.as_ref();
+    fn update_source(&mut self, source: ParentNodeRef) {
+        self.source = source
+    }
+}
 
-        while parent_tag.level() != 1 {
-            let parent_tag = parent_tag.parent();
+impl Iterator for Ancestors {
+    type Item = ParentNodeRef;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let current_node = self.source.clone();
+        let borrowed_node_parent = current_node.borrow();
+        let node_parent = borrowed_node_parent.parent();
+        match node_parent {
+            None => { return None; },
+            Some(parent) => {
+                self.update_source(parent.clone());
+            }
         }
-        
-        return &None;
+
+        return Some(self.source.clone());
+    }
+}
+
+
+///
+/// `Descendants` structure used to get the children of the current node upto the leaves
+/// 
+struct Descendants {
+    _source: ParentNodeRef,
+    children:Vec<ParentNodeRef>,
+}
+
+impl Descendants {
+    fn new(source: ParentNodeRef) -> Self {
+        let children = source.as_ref().borrow().children().clone();
+
+        Descendants {
+            _source: source, children,
+        }
+    }
+
+    ///
+    /// Used to update the next descendants of this iterator
+    /// 
+    fn update_children(&mut self, children:Vec<ParentNodeRef>) {
+        self.children = children;
+    }
+
+    ///
+    /// Used to mark the `Descendants` Iterator as having consumed all the values
+    /// 
+    fn finished(&self) -> bool {
+        return self.children.is_empty()
+    }
+}
+
+impl Iterator for Descendants {
+    type Item = Vec<ParentNodeRef>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // Get the list of the current children
+        let children = self.children.clone();
+        let mut next_children: Vec<ParentNodeRef> = Vec::new();
+
+        // Append the children's children to the next_children vector.
+        for child in &children {
+            next_children.extend_from_slice(&child.as_ref().borrow().children().clone());
+        }
+
+        // Check if the loop is finished first and return None
+        if self.finished() {
+            return None;
+        }
+
+        self.update_children(next_children);
+
+        return Some(children);
     }
 }
 
@@ -534,18 +585,24 @@ fn main() {
     let expense: Rc<PrimaryAccountType> = Rc::new(
         PrimaryAccountType::new("Expenses", ActionType::Increase, ActionType::Decrease)
     );
-    let root: Rc<RefCell<RootNode>> = Rc::new(RefCell::new(RootNode::new()));
+
+    let root: RootNodeRef = Rc::new(RefCell::new(RootNode::new()));
 
     let asset_node = Rc::new(
         RefCell::new(AccountTagNode::new(1, "Asset", Some(root.clone()), Some(asset.clone()))));
+    
+    {
+        root.borrow_mut().add_child(asset_node.clone());
+    }
     
     let current_assets_node = Rc::new(
         RefCell::new(AccountTagNode::new(2, "Current Assets",Some(asset_node.clone()), None))
     );
 
+
     // Necessary to drop the mutable borrowed reference
     {
-        let mut asset_n = asset_node.as_ref().borrow_mut();
+        let mut asset_n = asset_node.borrow_mut();
         asset_n.add_child(current_assets_node.clone());
     }
 
@@ -555,12 +612,34 @@ fn main() {
     );
 
     {
-        let mut current_asset_n = current_assets_node.as_ref().borrow_mut();
+        let mut current_asset_n = current_assets_node.borrow_mut();
         current_asset_n.add_child(cash.clone());
 
     }
 
-    // println!("Current Asset node: {:?}", asset_node.clone());
-    current_assets_node.borrow().account_type();
+    let cash_ref = cash.as_ref().borrow();
+    let cash_acc_type = cash_ref.account_type();
+
+    println!("Cash account type: {:?}", cash_acc_type);
+
+    let node_ref = current_assets_node.as_ref().borrow();
+    let acc_type = node_ref.account_type();
+    println!("Retrieved account type is: {:?}", acc_type);
+
+
+    // Get the descendants of the root node
+    let mut descendants = Descendants::new(root.clone());
+
+    println!("Next: {:?}", descendants.next());
+    println!("Next: {:?}", descendants.next());
+    println!("Next: {:?}", descendants.next());
+
+    let mut ancestors = Ancestors::new(cash.clone());
+
+    println!("**************************************");
+    println!("Cash ancestors");
+    println!("Ancestor: {:?}", ancestors.next());
+    println!("Ancestor: {:?}", ancestors.next());
+    println!("Ancestor: {:?}", ancestors.next());
 }
 

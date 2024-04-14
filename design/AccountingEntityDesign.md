@@ -168,4 +168,39 @@ Generally, there are 6 types of accounts:
 - Rc<T> only allows immutable borrows
 - Only compatible with types that implement `Copy`
 
-- Look into adding a `RefCell` to the relevant nodes.
+- [x] Look into adding a `RefCell` to the relevant nodes.
+- [x] Change Rc<RefCell<dyn ParentNode>> into a type like a `ParentNodeRef`
+- [x] Change Rc<RefCell<dyn AccountTreeNode>> into a type like `AccountTreeNodeRef`
+
+- [ ] Implement `Descendants` of a `AccountTreeNode`.
+- [ ] Implement `Ancestors` of a `AccountTreeNode`.
+- [ ] Implement an `AccountTree` with one `RootNode`.
+- [ ] Implement `Default` for the `RootNode`
+- [x] Function to update the account_type
+- [ ] Rethink `ParentNodeRef` vs `AccountTreeNodeRef`
+- [ ] Implement a `TreePrinter`
+  - [ ] Including a `SubTreePrinter`
+  - [ ] `Indenting` is necessary
+- [ ] Need the amount field for the `AccountTreeNode` that can be used to compute subtotals.
+  - [ ] Should the `amount` field be a trait?
+    - [ ] `RootNode` has no `amount`
+    - [ ] Think about both sides of the `BalanceSheet`
+      - [ ] `Subtotal` only upto `Level-1`
+    - [ ] `Level-1 AccountTagNodes` will be wrapped in a:
+      - [ ] `Side` wrapper
+      - [ ] `Ordinal` wrapper -> what comes first? 
+  - [ ] Might serve well to capture subtotals
+  - [ ] May result to the need of adding this field to the `AccountTagNode`
+    - [ ] If this is the case:
+      - [ ] There's no need for an `AccountNode`
+- [ ] `PostOrder` accounting subtotals calculator
+- [ ] Need to understand:
+  - [ ] `as_ref()`
+  - [ ] `borrow()`
+- [ ] `LevelOrder` Traversal necessary for searching for an account based on the level
+  - [ ] Implement `PartialEq` for `AccountTreeNode`
+    - [ ] This caters for `AccountTagNode` and `AccountNode` structures
+    - [ ] Here, the `name()` can be used to assert equality
+  - [ ] Then traversing all its children and returing a subtree containing subtotals
+  - [ ] This is a `BalanceSheet` application
+- [ ] 
