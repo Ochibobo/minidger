@@ -55,7 +55,7 @@ impl TransactionEntry {
 /// The sum of the `Credit` entries must equal the `Debit` entries.
 /// 
 #[derive(Debug)]
-struct JournalEntry {
+pub struct JournalEntry {
     id: usize,
     transaction_entries: Vec<Rc<TransactionEntry>>,
     date_of_entry: DateTime<Utc>,
@@ -63,7 +63,7 @@ struct JournalEntry {
 }
 
 impl JournalEntry {
-    fn new(id: usize, date_of_entry: DateTime<Utc>, description: &str) -> Self {
+    pub fn new(id: usize, date_of_entry: DateTime<Utc>, description: &str) -> Self {
         let transaction_entries: Vec<Rc<TransactionEntry>>= Vec::new();
         JournalEntry {
             id, transaction_entries, date_of_entry, description: description.to_owned(),
@@ -122,5 +122,136 @@ impl JournalEntry {
         }
 
         return debits == credits
+    }
+}
+
+///
+/// `General Ledger` that comprises of a set of journal entries.
+/// This is the structure that feeds into the `balance sheet`, the `income statement`
+/// and the `statemement of cashflow`.
+/// 
+#[derive(Debug)]
+pub struct Ledger {
+    id: usize,
+    journal_entries: Vec<JournalEntry>,
+}
+
+impl Ledger {
+    pub fn new(id: usize) -> Self {
+        Ledger{
+            id, journal_entries: Vec::new(),
+        }
+    }
+
+    ///
+    /// Get the `Ledger` id
+    /// 
+    pub fn id(&self) -> &usize {
+        &self.id
+    }
+
+    ///
+    /// Set the `Ledger`'s id
+    /// 
+    pub fn set_id(&mut self, id: usize) {
+        self.id = id
+    }
+
+    ///
+    /// Add a single journal entry
+    /// 
+    pub fn add_journal_entry(&mut self, journal_entry: JournalEntry){
+        self.journal_entries.push(journal_entry);
+    }
+
+    ///
+    /// Add multiple journal entries
+    /// 
+    pub fn add_journal_entries(&mut self, journal_entries: &mut Vec<JournalEntry>){
+        self.journal_entries.append(journal_entries);
+    }
+
+    ///
+    /// Replace all journal entries with the new one
+    /// 
+    pub fn set_journal_entries(&mut self, journal_entries: Vec<JournalEntry>){
+        self.journal_entries = journal_entries;
+    }
+
+    ///
+    /// `Remove` a `journal entry` from the `ledger`
+    ///
+    pub fn remove_journal_entry(&mut self, id: usize) {
+        self.journal_entries.retain(|j| j.id() != id)
+    }
+
+    ///
+    /// `Remove`` all `journal entries` from the `ledger`
+    ///
+    pub fn remove_all_journal_entries(&mut self) {
+        self.journal_entries.clear()
+    }
+
+    ///
+    /// Remove all journal entries and set the id to `0`
+    /// 
+    pub fn reset(&mut self) {
+        self.set_id(0);
+        self.remove_all_journal_entries();
+    }
+
+    ///
+    /// Get all journal entries
+    /// 
+    pub fn journal_entries(&self) -> &Vec<JournalEntry> {
+        &self.journal_entries
+    }
+
+    ///
+    /// Get a journal entry by id
+    ///
+    pub fn get_journal_entry_by_id(&self, id: usize) -> Option<&JournalEntry> {
+        self.journal_entries.iter().find(|j| j.id() == id)
+    }
+    
+    ///
+    /// Get a journal entry by date of entry
+    /// 
+    pub fn get_journal_entries_by_date(&self, date_of_entry: DateTime<Utc>) -> Vec<&JournalEntry> {
+       self.journal_entries.iter().filter(|j| j.date_of_entry == date_of_entry).into_iter().collect()
+    }
+
+    ///
+    /// Get journal entries by date range (date of entry range)
+    ///
+    pub fn get_journal_entry_by_between(&self, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Vec<&JournalEntry> {
+        self.journal_entries.iter().filter(|j| j.date_of_entry >= start_date && j.date_of_entry <= end_date).into_iter().collect()
+    } 
+    
+    ///
+    /// Get a journal entries by description
+    ///
+    pub fn get_journal_entry_by_description(&self, description: &str) -> Vec<&JournalEntry> {
+        self.journal_entries.iter().filter(|j| j.description.contains(description)).into_iter().collect()
+    }
+
+    ///
+    /// Get the `number of journal entries` in the `ledger`
+    /// 
+    pub fn number_of_journal_entries(&self) -> usize {
+        self.journal_entries.len()
+    }
+}
+
+
+#[cfg(test)]
+mod test {
+
+    ///
+    /// Test the creation of a transaction entry
+    /// 
+    #[test]
+    fn test_transaction_entry_creation() {
+
     }
 }

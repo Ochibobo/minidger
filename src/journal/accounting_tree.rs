@@ -161,13 +161,13 @@ type ParentNodeRef = Rc<RefCell<dyn ParentNode>>;
 ///
 /// A wrapper for a reference to a struct that implements the `AccountTreeNode` trait
 /// 
-type AccountTreeNodeRef = Rc<RefCell<dyn AccountTreeNode>>;
+pub type AccountTreeNodeRef = Rc<RefCell<dyn AccountTreeNode>>;
 
 
 ///
 /// A wrapper for a reference to the `RootNode` struct
 /// 
-type RootNodeRef = Rc<RefCell<RootNode>>;
+pub type RootNodeRef = Rc<RefCell<RootNode>>;
 
 ///
 /// The top-level node of the Accounting Tree structure
@@ -228,7 +228,7 @@ impl ParentNodeT for RootNode {
 }
 
 impl RootNode {
-    fn new() -> Self {
+    pub fn new() -> Self {
         RootNode {
             level: 0, parent: None, name: "root".to_owned(), children:Vec::new(),
         }
@@ -316,7 +316,7 @@ impl ParentNodeT for AccountTagNode {
 }
 
 impl AccountTagNode {
-    fn new(level: usize, name: &str, parent: Option<Rc<RefCell<dyn ParentNode>>>, account_type: Option<Rc<PrimaryAccountType>>) -> Self {
+    pub fn new(level: usize, name: &str, parent: Option<Rc<RefCell<dyn ParentNode>>>, account_type: Option<Rc<PrimaryAccountType>>) -> Self {
         let children = Vec::new();
         let account_tag_node: AccountTagNode;
 
@@ -442,7 +442,7 @@ impl ParentNodeT for AccountNode {
 }
 
 impl AccountNode {
-    fn new(level: usize, name: &str, amount: f64, parent: Option<Rc<RefCell<dyn ParentNode>>>) -> Self {
+    pub fn new(level: usize, name: &str, amount: f64, parent: Option<Rc<RefCell<dyn ParentNode>>>) -> Self {
         // Get a clone of the parent
         let parent_ref = parent.clone().unwrap().clone();
         // Retrieve the account type of the parent and return it
@@ -459,14 +459,14 @@ impl AccountNode {
     ///
     /// Used to set the amount in the `AccountNode`
     /// 
-    fn set_amount(&mut self, amount: f64) {
+    pub fn set_amount(&mut self, amount: f64) {
         self.amount = amount
     }
 
     ///
     /// Used to get the amount in the `AccountNode`
     /// 
-    fn amount(&self) -> f64 {
+    pub fn amount(&self) -> f64 {
         return self.amount;
     }
 }
@@ -476,9 +476,9 @@ impl AccountNode {
 /// `AccountTree` that holds the entire structure of the relation between different accounts.
 /// It contains a single reference to the `RootNode` of the particular account structure
 /// 
-pub struct AccountTree {
-    root: RootNode
-}
+// pub struct AccountTree {
+//     root: RootNode
+// }
 
 
 ///
@@ -489,7 +489,7 @@ pub struct Ancestors{
 }
 
 impl Ancestors {
-    fn new(source: ParentNodeRef) -> Self {
+    pub fn new(source: ParentNodeRef) -> Self {
         Ancestors {
             source
         }
@@ -531,7 +531,7 @@ pub struct Descendants {
 }
 
 impl Descendants {
-    fn new(source: ParentNodeRef) -> Self {
+    pub fn new(source: ParentNodeRef) -> Self {
         let children = source.as_ref().borrow().children().clone();
 
         Descendants {
