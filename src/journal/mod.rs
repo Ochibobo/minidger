@@ -1,3 +1,10 @@
+pub mod accounting_tree;
+pub mod balance_sheet;
+pub mod cashflow_statement;
+pub mod income_statement;
+pub mod ledger;
+
+
 // use chrono::{DateTime, Utc};
 
 // #[derive(Debug, PartialEq)]
@@ -235,30 +242,6 @@
 //         self.journal_entries.len()
 //     }
 // }
-
-// ///
-// /// `Balance Sheet` structure
-// /// This is basically a structured view of the ledger
-// /// 
-// struct BalanceSheet {
-//     id: usize,
-// }
-
-// ///
-// /// `Income Statement` structure
-// /// 
-// struct IncomeStatement {
-//     id: usize,
-// }
-
-
-// ///
-// /// `Cash Flow` statement structure
-// /// 
-// struct CashFlowStatement {
-//     id: usize,
-// }
-
 
 // let acc: Account = Account::new("Cash", asset);asset
 
