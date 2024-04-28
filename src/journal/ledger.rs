@@ -32,20 +32,41 @@ impl TransactionEntry {
         self.account.clone()
     }
 
+
+    pub fn set_account(&mut self, account:Rc<AccountNode>) {
+        self.account = account
+    }
+
     pub fn amount(&self) -> &f64 {
         &self.amount
+    }
+
+    pub fn set_amount(&mut self, amount: f64){
+        self.amount = amount
     }
 
     pub fn entry_type(&self) -> &EntryType {
         &self.entry_type
     }
 
+    pub fn set_entry_type(&mut self, entry_type: EntryType) {
+        self.entry_type = entry_type
+    }
+
     pub fn date_of_entry(&self) -> &DateTime<Utc> {
         &self.date_of_entry
     }
 
+    pub fn set_date_of_entry(&mut self, date_of_entry: DateTime<Utc>){
+        self.date_of_entry = date_of_entry
+    }
+
     pub fn description(&self) -> &str {
         &self.description
+    }
+
+    pub fn set_description(&mut self, description: &str){
+        self.description = description.to_owned()
     }
 }
 
