@@ -203,4 +203,9 @@ Generally, there are 6 types of accounts:
     - [ ] Here, the `name()` can be used to assert equality
   - [ ] Then traversing all its children and returing a subtree containing subtotals
   - [ ] This is a `BalanceSheet` application
-- [ ] 
+
+#### Accounting DSL
+- A DSL used to define accounts
+  - Define the hierarchies of association
+  - Consider just using yaml
+  - Account association

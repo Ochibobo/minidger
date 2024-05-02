@@ -1,5 +1,5 @@
 use crate::journal::accounting_tree::AccountNodeRef;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 use std::{cmp::Ordering, rc::Rc};
 
 #[derive(Debug, PartialEq)]
@@ -311,6 +311,8 @@ impl Ledger {
     ///
     pub fn reset(&mut self) {
         self.set_id(0);
+        self.set_from_date(Utc.with_ymd_and_hms(1970, 1, 1, 0, 0, 0).unwrap());
+        self.set_to_date(Utc.with_ymd_and_hms(1970, 1, 1, 0, 0, 0).unwrap());
         self.remove_all_journal_entries();
     }
 
@@ -863,8 +865,78 @@ mod test {
         assert_eq!(ledger.number_of_journal_entries(), 0);
         assert_eq!(ledger.id(), 1);
 
-        // add_entries
-        // reset
+        // Recreate the journal entries
+        journal_entry = JournalEntry::new(3, Utc::now(), "A test journal entry");
+        journal_entry.add_transaction_entry(loan_entry.clone());
+        journal_entry.add_transaction_entry(cash_entry_from_loan.clone());
+
+        sale_journal_entry = JournalEntry::new(4, Utc::now(), "Another test journal entry");
+        sale_journal_entry.add_transaction_entry(inventory_sale.clone());
+        sale_journal_entry.add_transaction_entry(cash_from_sale.clone());
+
+        // Add Journal Entries to the ledger
+        ledger.add_journal_entries(&mut vec![journal_entry, sale_journal_entry]);
+
+        assert_eq!(ledger.number_of_journal_entries(), 2);
+        assert_eq!(ledger.id(), 1);
+
+        // Reset the ledger
+        ledger.reset();
+
+        assert_eq!(ledger.id(), 0);
+        assert_eq!(ledger.number_of_journal_entries(), 0);
+        assert_eq!(
+            ledger
+                .from_date()
+                .cmp(&Utc.with_ymd_and_hms(1970, 1, 1, 0, 0, 0).unwrap()),
+            Ordering::Equal
+        );
+        assert_eq!(
+            ledger
+                .to_date()
+                .cmp(&Utc.with_ymd_and_hms(1970, 1, 1, 0, 0, 0).unwrap()),
+            Ordering::Equal
+        );
+
         // set_journal_entries
+        ledger.set_id(1);
+        ledger.set_from_date(Utc.with_ymd_and_hms(2024, 1, 2, 0, 0, 0).unwrap());
+        ledger.set_to_date(Utc.with_ymd_and_hms(2024, 5, 2, 0, 0, 0).unwrap());
+
+        assert_eq!(ledger.id(), 1);
+        assert_eq!(
+            ledger
+                .from_date()
+                .cmp(&Utc.with_ymd_and_hms(2024, 1, 2, 0, 0, 0).unwrap()),
+            Ordering::Equal
+        );
+        assert_eq!(
+            ledger
+                .to_date()
+                .cmp(&Utc.with_ymd_and_hms(2024, 5, 2, 0, 0, 0).unwrap()),
+            Ordering::Equal
+        );
+
+        assert_eq!(ledger.number_of_journal_entries(), 0);
+
+        journal_entry = JournalEntry::new(
+            3,
+            Utc.with_ymd_and_hms(2024, 3, 2, 0, 0, 0).unwrap(),
+            "A test journal entry",
+        );
+        journal_entry.add_transaction_entry(loan_entry.clone());
+        journal_entry.add_transaction_entry(cash_entry_from_loan.clone());
+
+        sale_journal_entry = JournalEntry::new(
+            4,
+            Utc.with_ymd_and_hms(2024, 3, 10, 0, 0, 0).unwrap(),
+            "Another test journal entry",
+        );
+        sale_journal_entry.add_transaction_entry(inventory_sale.clone());
+        sale_journal_entry.add_transaction_entry(cash_from_sale.clone());
+
+        ledger.set_journal_entries(vec![journal_entry, sale_journal_entry]);
+
+        assert_eq!(ledger.number_of_journal_entries(), 2);
     }
 }
