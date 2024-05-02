@@ -1,6 +1,6 @@
 use crate::journal::accounting_tree::AccountNodeRef;
 use chrono::{DateTime, Utc};
-use std::rc::Rc;
+use std::{cmp::Ordering, rc::Rc};
 
 #[derive(Debug, PartialEq)]
 pub enum EntryType {
@@ -197,6 +197,12 @@ pub struct Ledger {
 
 impl Ledger {
     pub fn new(id: usize, from_date: DateTime<Utc>, to_date: DateTime<Utc>) -> Self {
+        // Assert the from_date <= to_date
+        assert_eq!(
+            from_date.cmp(&to_date),
+            Ordering::Less.then(Ordering::Equal)
+        );
+
         Ledger {
             id,
             from_date,
@@ -208,8 +214,8 @@ impl Ledger {
     ///
     /// Get the `Ledger` id
     ///
-    pub fn id(&self) -> &usize {
-        &self.id
+    pub fn id(&self) -> usize {
+        self.id
     }
 
     ///
@@ -373,8 +379,11 @@ mod test {
 
     use super::EntryType;
     use super::JournalEntry;
+    use super::Ledger;
     use super::TransactionEntry;
+    use chrono::TimeZone;
     use chrono::Utc;
+    use std::cmp::Ordering;
     use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
     fn get_account_nodes_map() -> HashMap<String, AccountNodeRef> {
@@ -690,5 +699,172 @@ mod test {
     }
 
     #[test]
-    fn test_ledger_creation() {}
+    fn test_ledger_creation() {
+        // Get the accounts node map instance
+        let account_nodes_map = get_account_nodes_map();
+
+        // Transaction entries for the loan amount
+        let short_term_loan_node = account_nodes_map.get("short_term_loan").unwrap().to_owned();
+        let cash_node = account_nodes_map.get("cash").unwrap().to_owned();
+        let inventory_node = account_nodes_map.get("inventory").unwrap().to_owned();
+
+        // First journal entry
+        let mut journal_entry = JournalEntry::new(
+            1,
+            Utc.with_ymd_and_hms(2024, 2, 28, 0, 0, 0).unwrap(),
+            "Entry for loan used to purchase inventory",
+        );
+
+        // Short term loan
+        let loan_entry = Rc::new(TransactionEntry::new(
+            short_term_loan_node.clone(),
+            400.00,
+            EntryType::Credit,
+            Utc::now(),
+            "Short-term loan to purchase inventory",
+        ));
+
+        // Cash entry increase from this loan
+        let cash_entry_from_loan = Rc::new(TransactionEntry::new(
+            cash_node.clone(),
+            400.00,
+            EntryType::Debit,
+            Utc::now(),
+            "Cash that came from the inventory loan",
+        ));
+
+        journal_entry.add_transaction_entry(loan_entry.clone());
+        journal_entry.add_transaction_entry(cash_entry_from_loan.clone());
+
+        let mut ledger = Ledger::new(
+            1,
+            Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(2024, 5, 3, 12, 0, 0).unwrap(),
+        );
+
+        ledger.add_journal_entry(journal_entry);
+
+        assert_eq!(ledger.id(), 1);
+        assert_eq!(
+            ledger
+                .from_date()
+                .cmp(&Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap()),
+            Ordering::Equal
+        );
+
+        assert_eq!(
+            ledger
+                .to_date()
+                .cmp(&Utc.with_ymd_and_hms(2024, 5, 3, 12, 0, 0).unwrap()),
+            Ordering::Equal
+        );
+
+        assert_eq!(ledger.number_of_journal_entries(), 1);
+
+        // Add another journal entry to the ledger
+        let mut sale_journal_entry = JournalEntry::new(
+            2,
+            Utc.with_ymd_and_hms(2024, 3, 15, 0, 0, 0).unwrap(),
+            "Journal entry for the sale of the inventory.",
+        );
+
+        let inventory_sale = Rc::new(TransactionEntry::new(
+            inventory_node.clone(),
+            400.00,
+            EntryType::Credit,
+            Utc::now(),
+            "Selling the purchased inventory",
+        ));
+
+        let cash_from_sale = Rc::new(TransactionEntry::new(
+            cash_node.clone(),
+            700.00,
+            EntryType::Debit,
+            Utc::now(),
+            "Cash received from the sale of the inventory",
+        ));
+
+        sale_journal_entry.add_transaction_entry(inventory_sale.clone());
+        sale_journal_entry.add_transaction_entry(cash_from_sale.clone());
+
+        ledger.add_journal_entry(sale_journal_entry);
+
+        assert_eq!(ledger.number_of_journal_entries(), 2);
+
+        let journal_entry_with_id_1 = ledger.get_journal_entry_by_id(1);
+        assert_eq!(journal_entry_with_id_1.unwrap().id(), 1);
+
+        let journal_entries_with_sale_desciption =
+            ledger.get_journal_entry_by_description("sale of the inventory");
+        assert_eq!(journal_entries_with_sale_desciption.len(), 1);
+        assert!(journal_entries_with_sale_desciption
+            .get(0)
+            .unwrap()
+            .description()
+            .eq("Journal entry for the sale of the inventory."));
+
+        let journal_entries_between_2024_01_15_and_2024_03_01 = ledger
+            .get_journal_entry_by_between(
+                Utc.with_ymd_and_hms(2024, 1, 15, 0, 0, 0).unwrap(),
+                Utc.with_ymd_and_hms(2024, 3, 1, 0, 0, 0).unwrap(),
+            );
+
+        assert_eq!(journal_entries_between_2024_01_15_and_2024_03_01.len(), 1);
+        assert_eq!(
+            journal_entries_between_2024_01_15_and_2024_03_01
+                .get(0)
+                .unwrap()
+                .date_of_entry()
+                .cmp(&Utc.with_ymd_and_hms(2024, 2, 28, 0, 0, 0).unwrap()),
+            Ordering::Equal
+        );
+        assert!(journal_entries_between_2024_01_15_and_2024_03_01
+            .get(0)
+            .unwrap()
+            .description()
+            .eq("Entry for loan used to purchase inventory"));
+        assert_eq!(
+            journal_entries_between_2024_01_15_and_2024_03_01
+                .get(0)
+                .unwrap()
+                .id(),
+            1
+        );
+
+        let journal_entries_on_2024_03_15 =
+            ledger.get_journal_entries_by_date(Utc.with_ymd_and_hms(2024, 3, 15, 0, 0, 0).unwrap());
+        assert_eq!(journal_entries_on_2024_03_15.len(), 1);
+        assert_eq!(
+            journal_entries_on_2024_03_15
+                .get(0)
+                .unwrap()
+                .date_of_entry()
+                .cmp(&Utc.with_ymd_and_hms(2024, 3, 15, 0, 0, 0).unwrap()),
+            Ordering::Equal
+        );
+        assert!(journal_entries_on_2024_03_15
+            .get(0)
+            .unwrap()
+            .description()
+            .eq("Journal entry for the sale of the inventory."));
+        assert_eq!(journal_entries_on_2024_03_15.get(0).unwrap().id(), 2);
+
+        assert_eq!(ledger.number_of_journal_entries(), 2);
+
+        // Remove journal entry with id == 1
+        ledger.remove_journal_entry(1);
+
+        assert_eq!(ledger.number_of_journal_entries(), 1);
+        assert_eq!(ledger.journal_entries().get(0).unwrap().id(), 2);
+
+        // Remove all journal entries - maintains the ledger's id though
+        ledger.remove_all_journal_entries();
+
+        assert_eq!(ledger.number_of_journal_entries(), 0);
+        assert_eq!(ledger.id(), 1);
+
+        // add_entries
+        // reset
+        // set_journal_entries
+    }
 }
