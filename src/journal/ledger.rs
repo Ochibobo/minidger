@@ -329,7 +329,6 @@ impl Ledger {
         self.journal_entries
             .iter()
             .filter(|j| j.date_of_entry == date_of_entry)
-            .into_iter()
             .collect()
     }
 
@@ -344,7 +343,6 @@ impl Ledger {
         self.journal_entries
             .iter()
             .filter(|j| j.date_of_entry >= start_date && j.date_of_entry <= end_date)
-            .into_iter()
             .collect()
     }
 
@@ -355,7 +353,6 @@ impl Ledger {
         self.journal_entries
             .iter()
             .filter(|j| j.description.contains(description))
-            .into_iter()
             .collect()
     }
 
