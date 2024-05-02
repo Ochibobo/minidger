@@ -190,13 +190,17 @@ impl JournalEntry {
 #[derive(Debug)]
 pub struct Ledger {
     id: usize,
+    from_date: DateTime<Utc>,
+    to_date: DateTime<Utc>,
     journal_entries: Vec<JournalEntry>,
 }
 
 impl Ledger {
-    pub fn new(id: usize) -> Self {
+    pub fn new(id: usize, from_date: DateTime<Utc>, to_date: DateTime<Utc>) -> Self {
         Ledger {
             id,
+            from_date,
+            to_date,
             journal_entries: Vec::new(),
         }
     }
@@ -216,9 +220,47 @@ impl Ledger {
     }
 
     ///
+    /// Set the `from_date` - the date when the ledger entries begin
+    ///
+    pub fn set_from_date(&mut self, from_date: DateTime<Utc>) {
+        self.from_date = from_date;
+    }
+
+    ///
+    /// Get the `Ledger's` from_date
+    ///
+    pub fn from_date(&self) -> &DateTime<Utc> {
+        &self.from_date
+    }
+
+    ///
+    /// Set the `to_date` - the date when the ledger entries end
+    ///
+    pub fn set_to_date(&mut self, to_date: DateTime<Utc>) {
+        self.to_date = to_date;
+    }
+
+    ///
+    /// Get the `Ledger's` to_date
+    ///
+    pub fn to_date(&self) -> &DateTime<Utc> {
+        &self.to_date
+    }
+
+    ///
+    /// Used to validate that the dates of the journal entry are in sync
+    /// with the dates of the ledger
+    ///
+    fn validate_journal_entry_dates(&self, journal_entry: &JournalEntry) {
+        assert!(&journal_entry.date_of_entry() >= self.from_date());
+        assert!(&journal_entry.date_of_entry() <= self.to_date());
+    }
+
+    ///
     /// Add a single journal entry
     ///
     pub fn add_journal_entry(&mut self, journal_entry: JournalEntry) {
+        self.validate_journal_entry_dates(&journal_entry);
         self.journal_entries.push(journal_entry);
     }
 
@@ -226,6 +268,10 @@ impl Ledger {
     /// Add multiple journal entries
     ///
     pub fn add_journal_entries(&mut self, journal_entries: &mut Vec<JournalEntry>) {
+        journal_entries
+            .iter()
+            .for_each(|entry| self.validate_journal_entry_dates(entry));
+
         self.journal_entries.append(journal_entries);
     }
 
@@ -233,6 +279,10 @@ impl Ledger {
     /// Replace all journal entries with the new one
     ///
     pub fn set_journal_entries(&mut self, journal_entries: Vec<JournalEntry>) {
+        journal_entries
+            .iter()
+            .for_each(|entry| self.validate_journal_entry_dates(entry));
+
         self.journal_entries = journal_entries;
     }
 
@@ -641,4 +691,7 @@ mod test {
         assert!(sale_journal_entry.validate());
         assert_eq!(sale_journal_entry.number_of_transaction_entries(), 4);
     }
+
+    #[test]
+    fn test_ledger_creation() {}
 }
