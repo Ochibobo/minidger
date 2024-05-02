@@ -257,12 +257,13 @@ pub struct AccountTagNode {
     parent: Option<ParentNodeRef>,
     children: Vec<ParentNodeRef>,
     account_type: Option<Rc<PrimaryAccountType>>,
+    amount: f64,
 }
 
 impl Debug for AccountTagNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "AccountTagNode {{ level: {}, name: {}, parent: {:?}, account_type: {:?}}}, children: {:?}",
-            self.level, self.name, self.parent, self.account_type, self.children)
+        write!(f, "AccountTagNode {{ level: {}, name: {}, parent: {:?}, account_type: {:?}}}, children: {:?}, subtotal: {:?}",
+            self.level, self.name, self.parent, self.account_type, self.children, self.amount)
     }
 }
 
@@ -374,6 +375,7 @@ impl AccountTagNode {
                 parent,
                 children,
                 account_type: tmp_acc_type.to_owned(),
+                amount: 0f64,
             }
         } else {
             // Confirm that if the level == 1, an associated account_type exists
@@ -386,12 +388,27 @@ impl AccountTagNode {
                         parent,
                         children,
                         account_type: Some(account_type.clone()),
+                        amount: 0f64,
                     }
                 }
             }
         }
 
         return account_tag_node;
+    }
+
+    ///
+    /// Function used to set the `subtotal amount` for an `AccountTagNode`
+    ///
+    pub fn set_amount(&mut self, amount: f64) {
+        self.amount = amount;
+    }
+
+    ///
+    /// Function used to get the `subtotal amount` for an `AccountTagNode`
+    ///
+    pub fn amount(&self) -> f64 {
+        return self.amount;
     }
 }
 
@@ -482,7 +499,7 @@ impl AccountNode {
         AccountNode {
             level,
             name: name.to_owned(),
-            amount: 0.0,
+            amount: 0f64,
             parent,
             children: Vec::new(),
             account_type: parent_account_type,
