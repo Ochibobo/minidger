@@ -525,9 +525,23 @@ impl AccountNode {
 /// `AccountTree` that holds the entire structure of the relation between different accounts.
 /// It contains a single reference to the `RootNode` of the particular account structure
 ///
-// pub struct AccountTree {
-//     root: RootNode
-// }
+pub struct AccountTree {
+    root: RootNodeRef,
+}
+
+impl AccountTree {
+    pub fn new(root: RootNodeRef) -> Self {
+        AccountTree { root: root.clone() }
+    }
+
+    pub fn root(&self) -> RootNodeRef {
+        self.root.clone()
+    }
+
+    pub fn set_root(&mut self, root: RootNodeRef) {
+        self.root = root.clone()
+    }
+}
 
 ///
 /// `Ancestors` structure to get the parent of the current node upto the parent level
