@@ -372,6 +372,22 @@ impl Ledger {
     }
 }
 
+///
+/// `LedgerReader` trait used to read a ledger from
+/// particular sources.
+///
+pub trait LedgerReader {
+    ///
+    /// Read a ledger by id
+    ///
+    fn read_by_id(&self, id: usize) -> Ledger;
+
+    ///
+    /// Read a ledger by date range
+    ///
+    fn read_by_date_range(&self, from_date: DateTime<Utc>, to_date: DateTime<Utc>) -> Ledger;
+}
+
 #[cfg(test)]
 mod test {
     use crate::journal::accounting_tree::{
