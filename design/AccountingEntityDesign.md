@@ -209,3 +209,13 @@ Generally, there are 6 types of accounts:
   - Define the hierarchies of association
   - Consider just using yaml
   - Account association
+
+#### Reader and Writer interfaces
+- A Reader for all elements:
+  - From files
+  - From any database
+- A Writer for all elements
+  - To files
+  - To Databases
+- Files af any formart
+- Any target database
