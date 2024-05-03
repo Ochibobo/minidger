@@ -219,3 +219,4 @@ Generally, there are 6 types of accounts:
   - To Databases
 - Files af any formart
 - Any target database
+- Do ledgers, balance sheets, income statements and cashflow statements have ids really?
