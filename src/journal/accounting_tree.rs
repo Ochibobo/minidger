@@ -97,9 +97,19 @@ pub trait AccountTreeNode {
     fn set_parent(&mut self, parent: Option<Rc<RefCell<dyn ParentNode>>>);
 
     ///
-    ///  Use to get the child node's parent
+    ///  Used to get the child node's parent
     ///
     fn parent(&self) -> &Option<Rc<RefCell<dyn ParentNode>>>;
+
+    ///
+    /// Used to get the amount associated with this node
+    ///
+    fn amount(&self) -> f64;
+
+    ///
+    /// Used to set the amount associated with this node
+    ///
+    fn set_amount(&mut self, amount: f64);
 }
 
 impl Debug for dyn AccountTreeNode {
@@ -217,6 +227,14 @@ impl AccountTreeNode for RootNode {
     fn parent(&self) -> &Option<Rc<RefCell<dyn ParentNode>>> {
         return &self.parent;
     }
+
+    fn amount(&self) -> f64 {
+        0f64
+    }
+
+    fn set_amount(&mut self, amount: f64) {
+        _ = amount;
+    }
 }
 
 impl ParentNodeT for RootNode {
@@ -305,6 +323,14 @@ impl AccountTreeNode for AccountTagNode {
     // Use to get the child node's parentOption
     fn parent(&self) -> &Option<Rc<RefCell<dyn ParentNode>>> {
         return &self.parent;
+    }
+
+    fn amount(&self) -> f64 {
+        return self.amount;
+    }
+
+    fn set_amount(&mut self, amount: f64) {
+        self.amount = amount
     }
 }
 
@@ -396,20 +422,6 @@ impl AccountTagNode {
 
         return account_tag_node;
     }
-
-    ///
-    /// Function used to set the `subtotal amount` for an `AccountTagNode`
-    ///
-    pub fn set_amount(&mut self, amount: f64) {
-        self.amount = amount;
-    }
-
-    ///
-    /// Function used to get the `subtotal amount` for an `AccountTagNode`
-    ///
-    pub fn amount(&self) -> f64 {
-        return self.amount;
-    }
 }
 
 ///
@@ -473,6 +485,20 @@ impl AccountTreeNode for AccountNode {
     ///
     fn account_type(&self) -> &Option<Rc<PrimaryAccountType>> {
         return &self.account_type;
+    }
+
+    ///
+    /// Function used to set the `subtotal amount` for an `AccountTagNode`
+    ///
+    fn set_amount(&mut self, amount: f64) {
+        self.amount = amount;
+    }
+
+    ///
+    /// Function used to get the `subtotal amount` for an `AccountTagNode`
+    ///
+    fn amount(&self) -> f64 {
+        return self.amount;
     }
 }
 
