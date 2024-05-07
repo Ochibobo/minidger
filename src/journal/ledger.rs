@@ -1,4 +1,4 @@
-use crate::journal::accounting_tree::AccountNodeRef;
+use crate::journal::accounting_tree::{AccountNodeRef, AccountTreeNode};
 use chrono::{DateTime, TimeZone, Utc};
 use std::{cmp::Ordering, rc::Rc};
 
@@ -43,6 +43,10 @@ impl TransactionEntry {
 
     pub fn set_account(&mut self, account: AccountNodeRef) {
         self.account = account
+    }
+
+    pub fn account_name(&self) -> String {
+        self.account.as_ref().borrow().name().to_owned()
     }
 
     pub fn amount(&self) -> f64 {
