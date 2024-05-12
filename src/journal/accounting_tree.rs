@@ -705,6 +705,11 @@ impl DFS {
         self.root.clone()
     }
 
+    pub fn set_root(&mut self, root: Rc<RefCell<dyn ParentNode>>) {
+        self.root = root.clone();
+        self.node = root.clone();
+    }
+
     pub fn traverse(&mut self, name: &str) -> Option<Rc<RefCell<dyn ParentNode>>> {
         let node_clone = self.node.clone();
         let node_ref = node_clone.as_ref().borrow();
