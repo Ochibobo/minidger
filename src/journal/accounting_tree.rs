@@ -262,6 +262,13 @@ impl RootNode {
             children: Vec::new(),
         }
     }
+
+    // pub fn get_node_by_name(&self, name: String) -> &Option<impl ParentNode> {
+    //     if self.name().eq_ignore_ascii_case(&name) {
+    //         return &Some(self.clone());
+    //     }
+    //     &None
+    // }
 }
 
 ///
@@ -556,16 +563,30 @@ pub struct AccountTree {
 }
 
 impl AccountTree {
+    ///
+    /// Used to create a new instance of the AccountTree.
+    /// It takes a reference to the root node of `RootNodeRef` type.
+    ///
     pub fn new(root: RootNodeRef) -> Self {
         AccountTree { root: root.clone() }
     }
 
+    ///
+    /// Used to fetch the `root` of the `AccountTree`
+    ///
     pub fn root(&self) -> RootNodeRef {
         self.root.clone()
     }
 
+    ///
+    /// Used to set the `root` of the `AccountTree`.
+    ///
     pub fn set_root(&mut self, root: RootNodeRef) {
         self.root = root.clone()
+    }
+
+    pub fn get_node_by_name(&self, name: String) -> &Option<Box<dyn ParentNode>> {
+        &None
     }
 }
 
@@ -663,6 +684,212 @@ impl Iterator for Descendants {
         self.update_children(next_children);
 
         return Some(children);
+    }
+}
+
+pub struct DFS {
+    root: Rc<RefCell<dyn ParentNode>>,
+    node: Rc<RefCell<dyn ParentNode>>,
+}
+
+impl DFS {
+    pub fn new(root: Rc<RefCell<dyn ParentNode>>) -> Self {
+        DFS {
+            root: root.clone(),
+            node: root.clone(),
+        }
+    }
+
+    pub fn root(&self) -> Rc<RefCell<dyn ParentNode>> {
+        self.root.clone()
+    }
+
+    pub fn traverse(&mut self, name: &str) -> Option<Rc<RefCell<dyn ParentNode>>> {
+        let node_clone = self.node.clone();
+        let node_ref = node_clone.as_ref().borrow();
+
+        if node_ref.name().eq_ignore_ascii_case(name) {
+            return Some(self.node.clone());
+        }
+
+        let children = node_ref.children();
+
+        for child in children.iter() {
+            // Re-assign the current node to the child and proceed to search
+            self.node = child.clone().to_owned();
+            // Continue searching based on depth
+            let result_node = self.traverse(name);
+
+            // If the result_node is found, return immediately
+            match result_node {
+                None => {}
+                // If the result is found, return it as-is
+                Some(result) => {
+                    return Some(result.clone());
+                }
+            }
+        }
+
+        None
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::{
+        AccountNode, AccountTagNode, ActionType, ParentNodeT, PrimaryAccountType, RootNode,
+        RootNodeRef, DFS,
+    };
+    use std::{cell::RefCell, rc::Rc};
+
+    ///
+    /// Test the DFS traversal of the accounting tree or part thereof
+    ///
+    #[test]
+    fn test_dfs_traversal() {
+        // Create a tree instance
+        let root: RootNodeRef = Rc::new(RefCell::new(RootNode::new()));
+
+        let asset: Rc<PrimaryAccountType> = Rc::new(PrimaryAccountType::new(
+            "Assets",
+            ActionType::Increase,
+            ActionType::Decrease,
+        ));
+
+        let liabilities: Rc<PrimaryAccountType> = Rc::new(PrimaryAccountType::new(
+            "Liabilities",
+            ActionType::Decrease,
+            ActionType::Increase,
+        ));
+
+        let equity: Rc<PrimaryAccountType> = Rc::new(PrimaryAccountType::new(
+            "Owner's Equity",
+            ActionType::Increase,
+            ActionType::Decrease,
+        ));
+
+        let asset_node = Rc::new(RefCell::new(AccountTagNode::new(
+            1,
+            "Asset",
+            Some(root.clone()),
+            Some(asset.clone()),
+        )));
+
+        let liabilities_node = Rc::new(RefCell::new(AccountTagNode::new(
+            1,
+            "Liabilities",
+            Some(root.clone()),
+            Some(liabilities.clone()),
+        )));
+
+        let equity_node = Rc::new(RefCell::new(AccountTagNode::new(
+            1,
+            "Owner's Equity",
+            Some(root.clone()),
+            Some(equity.clone()),
+        )));
+
+        {
+            let mut root_ref = root.as_ref().borrow_mut();
+            root_ref.add_child(asset_node.clone());
+            root_ref.add_child(liabilities_node.clone());
+            root_ref.add_child(equity_node.clone());
+        }
+
+        let current_assets_node = Rc::new(RefCell::new(AccountTagNode::new(
+            2,
+            "Current Assets",
+            Some(asset_node.clone()),
+            None,
+        )));
+
+        let current_liabilities_node = Rc::new(RefCell::new(AccountTagNode::new(
+            2,
+            "Current Liabilities",
+            Some(liabilities_node.clone()),
+            None,
+        )));
+
+        let retained_earnings_node = Rc::new(RefCell::new(AccountTagNode::new(
+            3,
+            "Retained Earnings",
+            Some(equity_node.clone()),
+            None,
+        )));
+
+        // Necessary to drop the mutable borrowed reference
+        {
+            let mut asset_n = asset_node.as_ref().borrow_mut();
+            asset_n.add_child(current_assets_node.clone());
+
+            let mut equity_n = equity_node.as_ref().borrow_mut();
+            equity_n.add_child(retained_earnings_node.clone());
+
+            let mut liabilities_n = liabilities_node.as_ref().borrow_mut();
+            liabilities_n.add_child(current_liabilities_node.clone());
+        }
+
+        // An AccountNode's definition example
+        let cash = Rc::new(RefCell::new(AccountNode::new(
+            3,
+            "Cash",
+            Some(current_assets_node.clone()),
+        )));
+
+        let inventory = Rc::new(RefCell::new(AccountNode::new(
+            3,
+            "Inventory",
+            Some(current_assets_node.clone()),
+        )));
+
+        // The accounts payable node
+        let short_term_loan = Rc::new(RefCell::new(AccountNode::new(
+            3,
+            "Short Term Loan",
+            Some(current_liabilities_node.clone()),
+        )));
+
+        // Revenue and cost of sales nodes
+        let revenue = Rc::new(RefCell::new(AccountNode::new(
+            3,
+            "Revenue",
+            Some(retained_earnings_node.clone()),
+        )));
+
+        let cost_of_sales = Rc::new(RefCell::new(AccountNode::new(
+            3,
+            "Cost of Sales",
+            Some(retained_earnings_node.clone()),
+        )));
+
+        {
+            let mut current_asset_n = current_assets_node.as_ref().borrow_mut();
+            current_asset_n.add_child(cash.clone());
+            current_asset_n.add_child(inventory.clone());
+
+            let mut retained_earnings_n = retained_earnings_node.as_ref().borrow_mut();
+            retained_earnings_n.add_child(revenue.clone());
+            retained_earnings_n.add_child(cost_of_sales.clone());
+
+            let mut current_liabilities_n = current_liabilities_node.as_ref().borrow_mut();
+            current_liabilities_n.add_child(short_term_loan.clone());
+        }
+
+        let mut dfs = DFS::new(root.clone());
+        let query = "Cost of Sales";
+        let result = dfs.traverse(&query);
+
+        match result {
+            None => {
+                println!("{:?} was never found", query)
+            }
+            Some(node) => {
+                let node_clone = node.clone();
+                let node_ref = node_clone.as_ref().borrow();
+
+                println!("Node with name: {:?} was found.", node_ref.name());
+            }
+        }
     }
 }
 
