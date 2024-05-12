@@ -585,8 +585,9 @@ impl AccountTree {
         self.root = root.clone()
     }
 
-    pub fn get_node_by_name(&self, name: String) -> &Option<Box<dyn ParentNode>> {
-        &None
+    pub fn get_node_by_name(&self, name: &str) -> Option<Rc<RefCell<dyn ParentNode>>> {
+        let mut dfs = DFS::new(self.root.clone());
+        return dfs.traverse(name);
     }
 }
 
