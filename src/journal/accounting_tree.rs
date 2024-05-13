@@ -1,4 +1,8 @@
-use std::{cell::RefCell, fmt::Debug, rc::Rc};
+use std::{
+    cell::{Ref, RefCell},
+    fmt::Debug,
+    rc::Rc,
+};
 
 #[derive(Debug, PartialEq)]
 pub enum ActionType {
@@ -262,13 +266,6 @@ impl RootNode {
             children: Vec::new(),
         }
     }
-
-    // pub fn get_node_by_name(&self, name: String) -> &Option<impl ParentNode> {
-    //     if self.name().eq_ignore_ascii_case(&name) {
-    //         return &Some(self.clone());
-    //     }
-    //     &None
-    // }
 }
 
 ///
@@ -688,12 +685,20 @@ impl Iterator for Descendants {
     }
 }
 
+///
+/// `DFS` search for node. The structure take's the `root` node which is a `Rc<RefCell<dyn ParentNode>>`
+/// and uses the method `traverse` that takes in the `name` of the node you want to search for and performs a
+/// Depth First Search for the node.
+///
 pub struct DFS {
     root: Rc<RefCell<dyn ParentNode>>,
     node: Rc<RefCell<dyn ParentNode>>,
 }
 
 impl DFS {
+    ///
+    /// Create a new instance of `DFS`
+    ///
     pub fn new(root: Rc<RefCell<dyn ParentNode>>) -> Self {
         DFS {
             root: root.clone(),
@@ -701,15 +706,26 @@ impl DFS {
         }
     }
 
+    ///
+    /// Get the `root` node of the `DFS`
+    ///
     pub fn root(&self) -> Rc<RefCell<dyn ParentNode>> {
         self.root.clone()
     }
 
+    ///
+    /// Set the `root` node of the `DFS`
+    ///
     pub fn set_root(&mut self, root: Rc<RefCell<dyn ParentNode>>) {
         self.root = root.clone();
         self.node = root.clone();
     }
 
+    ///
+    /// Perform a depth first search traversal of from the `root` node for a node
+    /// whose `name` matches the passed `name`. Return the first node that matches
+    /// this `name`.
+    ///
     pub fn traverse(&mut self, name: &str) -> Option<Rc<RefCell<dyn ParentNode>>> {
         let node_clone = self.node.clone();
         let node_ref = node_clone.as_ref().borrow();
@@ -737,6 +753,69 @@ impl DFS {
         }
 
         None
+    }
+}
+
+///
+/// `AmountAggregator` object used to perform a post-order traversal on an accounting tree
+/// or subtree and aggregate the amount upwards.
+///
+pub struct AmountAggregator {
+    root: Rc<RefCell<dyn ParentNode>>,
+    node: Rc<RefCell<dyn ParentNode>>,
+}
+
+impl AmountAggregator {
+    pub fn new(root: Rc<RefCell<dyn ParentNode>>) -> Self {
+        AmountAggregator {
+            root: root.clone(),
+            node: root.clone(),
+        }
+    }
+
+    ///
+    /// Get the `root` of the aggregator
+    ///
+    pub fn root(&self) -> Rc<RefCell<dyn ParentNode>> {
+        self.root.clone()
+    }
+
+    ///
+    /// Set the `root` for the aggregator
+    ///
+    pub fn set_root(&mut self, root: Rc<RefCell<dyn ParentNode>>) {
+        self.root = root
+    }
+
+    ///
+    /// Function used to perform the aggregation. This updates the
+    /// tree nodes' amount
+    ///
+    pub fn aggregate(&mut self) -> Rc<RefCell<dyn ParentNode>> {
+        // If root has no child, return
+        let node_clone = self.node.clone();
+        let borrowed_node = node_clone.borrow();
+        let children = borrowed_node.children();
+
+        // Return the node itself if it has no children
+        if children.is_empty() {
+            return self.node.clone();
+        }
+
+        // Variable to store the total amount retrieved from a node's children
+        let mut total_from_children = borrowed_node.amount();
+
+        for child_node in children.iter() {
+            self.node = self.aggregate();
+            total_from_children += child_node.borrow().amount();
+        }
+
+        {
+            let mut mutable_node = self.node.borrow_mut();
+            mutable_node.set_amount(total_from_children);
+        }
+
+        self.node.clone()
     }
 }
 
