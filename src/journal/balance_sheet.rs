@@ -165,7 +165,8 @@ impl BalanceSheet {
                 None => {
                     panic!(
                         "Transaction with id: {:?} and account name: {:?} has account_type of None",
-                        1, acc_name,
+                        transaction_entry.id(),
+                        acc_name,
                     );
                 }
                 Some(account_type_result) => {
