@@ -181,7 +181,7 @@ impl BalanceSheet {
             }
 
             // Get the sign that'll be assigned to the amount
-            let mut signum = 0f64;
+            let signum: f64;
 
             // Increase of decrease the amounts accordingly
             match transaction_entry.entry_type() {
