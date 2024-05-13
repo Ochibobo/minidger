@@ -13,6 +13,7 @@ pub enum EntryType {
 ///
 #[derive(Debug)]
 pub struct TransactionEntry {
+    id: usize,
     account: AccountNodeRef,
     amount: f64,
     entry_type: EntryType,
@@ -22,6 +23,7 @@ pub struct TransactionEntry {
 
 impl TransactionEntry {
     pub fn new(
+        id: usize,
         account: AccountNodeRef,
         amount: f64,
         entry_type: EntryType,
@@ -29,12 +31,21 @@ impl TransactionEntry {
         description: &str,
     ) -> Self {
         TransactionEntry {
+            id,
             account,
             amount,
             entry_type,
             date_of_entry,
             description: description.to_owned(),
         }
+    }
+
+    pub fn id(&self) -> usize {
+        self.id
+    }
+
+    pub fn set_id(&mut self, id: usize) {
+        self.id = id
     }
 
     pub fn account(&self) -> AccountNodeRef {
@@ -559,6 +570,7 @@ mod test {
         let account_nodes_map = get_account_nodes_map();
         let cash_account = account_nodes_map.get("cash").unwrap().to_owned();
         let grocery_transaction_entry = TransactionEntry::new(
+            1,
             cash_account.clone(),
             1_000.00,
             EntryType::Debit,
@@ -617,6 +629,7 @@ mod test {
 
         // Short term loan
         let loan_entry = Rc::new(TransactionEntry::new(
+            2,
             short_term_loan_node.clone(),
             400.00,
             EntryType::Credit,
@@ -626,6 +639,7 @@ mod test {
 
         // Cash entry increase from this loan
         let cash_entry_from_loan = Rc::new(TransactionEntry::new(
+            3,
             cash_node.clone(),
             400.00,
             EntryType::Debit,
@@ -641,6 +655,7 @@ mod test {
         assert_eq!(journal_entry.number_of_transaction_entries(), 2);
 
         let cash_for_inventory_purchase = Rc::new(TransactionEntry::new(
+            4,
             cash_node.clone(),
             400.00,
             EntryType::Credit,
@@ -649,6 +664,7 @@ mod test {
         ));
 
         let inventory_purchased = Rc::new(TransactionEntry::new(
+            5,
             inventory_node.clone(),
             400.00,
             EntryType::Debit,
@@ -668,6 +684,7 @@ mod test {
         );
 
         let inventory_sale = Rc::new(TransactionEntry::new(
+            6,
             inventory_node.clone(),
             400.00,
             EntryType::Credit,
@@ -676,6 +693,7 @@ mod test {
         ));
 
         let cash_from_sale = Rc::new(TransactionEntry::new(
+            7,
             cash_node.clone(),
             700.00,
             EntryType::Debit,
@@ -698,6 +716,7 @@ mod test {
 
         // Record the revenue and cost of sale
         let revenue = Rc::new(TransactionEntry::new(
+            8,
             revenue_node.clone(),
             700.00,
             EntryType::Credit,
@@ -706,6 +725,7 @@ mod test {
         ));
 
         let cost_of_sales = Rc::new(TransactionEntry::new(
+            9,
             cost_of_sales_node.clone(),
             400.00,
             EntryType::Debit,
@@ -743,6 +763,7 @@ mod test {
 
         // Short term loan
         let loan_entry = Rc::new(TransactionEntry::new(
+            1,
             short_term_loan_node.clone(),
             400.00,
             EntryType::Credit,
@@ -752,6 +773,7 @@ mod test {
 
         // Cash entry increase from this loan
         let cash_entry_from_loan = Rc::new(TransactionEntry::new(
+            2,
             cash_node.clone(),
             400.00,
             EntryType::Debit,
@@ -795,6 +817,7 @@ mod test {
         );
 
         let inventory_sale = Rc::new(TransactionEntry::new(
+            3,
             inventory_node.clone(),
             400.00,
             EntryType::Credit,
@@ -803,6 +826,7 @@ mod test {
         ));
 
         let cash_from_sale = Rc::new(TransactionEntry::new(
+            4,
             cash_node.clone(),
             700.00,
             EntryType::Debit,
