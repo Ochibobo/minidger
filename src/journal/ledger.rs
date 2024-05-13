@@ -1,6 +1,6 @@
-use crate::journal::accounting_tree::{AccountNodeRef, AccountTreeNode};
+use crate::journal::accounting_tree::{AccountNodeRef, AccountTreeNode, PrimaryAccountType};
 use chrono::{DateTime, TimeZone, Utc};
-use std::{cmp::Ordering, rc::Rc};
+use std::{cell::Ref, cmp::Ordering, rc::Rc};
 
 #[derive(Debug, PartialEq)]
 pub enum EntryType {
@@ -47,6 +47,10 @@ impl TransactionEntry {
 
     pub fn account_name(&self) -> String {
         self.account.as_ref().borrow().name().to_owned()
+    }
+
+    pub fn account_type(&self) -> Ref<Option<Rc<PrimaryAccountType>>> {
+        Ref::map(self.account.borrow(), |acc| acc.account_type())
     }
 
     pub fn amount(&self) -> f64 {
