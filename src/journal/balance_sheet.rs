@@ -1,4 +1,4 @@
-use crate::journal::accounting_tree::{AccountTree, ActionType};
+use crate::journal::accounting_tree::{AccountTree, ActionType, AmountAggregator, DFS};
 use crate::journal::ledger::{EntryType, Ledger, LedgerReader, TransactionEntry};
 use chrono::{DateTime, Utc};
 use std::borrow::Borrow;
@@ -213,14 +213,95 @@ impl BalanceSheet {
             );
         }
 
-        // Map the account name to an account tree node
-        //  - Retrieve the tree node from a cache
-        //  - In case of a miss, perform a DFS to retrieve the tree node
-        //  - In case the account_name has no matching node, throw an error immeadiately
+        // Create a DFS instance
+        let mut dfs = DFS::new(self.accounting_tree.root().clone());
+
+        for (account_name, amount) in accounts_aggregate_map.iter() {
+            // Fetch the account associated with the account name
+            let account = dfs.traverse(account_name.as_str());
+
+            match account {
+                None => {
+                    panic!(
+                        "Account name: {:?} has no associated account node.",
+                        account_name
+                    )
+                }
+                Some(acc) => {
+                    // Update the amount set for the current node with the one associated to account name
+                    let mut borrowed_account_node = acc.borrow_mut();
+                    borrowed_account_node.set_amount(amount.to_owned());
+                }
+            }
+        }
+
+        // At this point, we can assume that all leaf nodes that are touched on by the
+        // transaction entries have their aggregate amounts set.
         // Use the aggregates to compute amounts that'll be propagated up the tree
         //  - Propagate the amounts up the tree.
-        // Assert Assets = Liabilities + Equity
+        let mut amount_aggregator = AmountAggregator::new(self.accounting_tree.root().clone());
+        _ = amount_aggregator.aggregate();
     }
+
+    ///
+    /// Function to check whether the balance sheet is balanced.
+    /// Takes 2 parameters:
+    ///     - `lhs`: __left hand side__ vector comprising of the names of accounts
+    ///        that make up the left side of the accounting equation.
+    ///     - `rhs`: __right hand side__ vector comprising of the names of accounts
+    ///        that make up the right hand side of the accounting equation.
+    /// A common equation is assets = liabilities + owner's equity.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let lhs = vec!["assets"];
+    /// let rhs = vec!["liabilities", "owner's equity"]
+    ///
+    /// // Create a new balance sheet instance
+    /// let balance_sheet = ...;
+    /// // Build the balance sheet to fill in the account tree amount field
+    /// balance_sheet.build();
+    ///
+    /// let is_balanced = balance_sheet.is_balanced(&lhs, &rhs);
+    ///
+    /// println!("Is the balance sheet balanced? {:?}", is_balanced);
+    /// ```
+    pub fn is_balanced(&self, lhs: &Vec<&str>, rhs: &Vec<&str>) -> bool {
+        let lhs_total: f64 = self.accounts_total(lhs);
+        let rhs_total = self.accounts_total(rhs);
+
+        lhs_total == rhs_total
+    }
+
+    ///
+    /// Function used to return the total for a set of accounts represented by their account name
+    ///
+    pub fn accounts_total(&self, account_names: &Vec<&str>) -> f64 {
+        let mut total = 0f64;
+
+        // DFS instance useful for traversal of accounts
+        let mut dfs = DFS::new(self.accounting_tree.root().clone());
+
+        //
+        for account_name in account_names {
+            // Get the account with the name from the tree
+            let account_option = dfs.traverse(account_name);
+
+            match account_option {
+                None => {
+                    panic!("No account exists with account name: {:?}", account_name)
+                }
+                Some(account_node) => {
+                    let account = account_node.as_ref().borrow();
+                    total += account.amount();
+                }
+            }
+        }
+
+        total
+    }
+
     // Consider adding methods to retrieve account trees with subtotals
     // Consider adding a method to return the IncomeStatement
     // Consider adding a method to return the CashflowStatement
