@@ -790,44 +790,42 @@ impl AmountAggregator {
     pub fn aggregate(&mut self) -> Rc<RefCell<dyn ParentNode>> {
         // If root has no child, return
         let node_clone = self.node.clone();
-        let borrowed_node = node_clone.borrow();
-        let children = borrowed_node.children();
+        let mut borrowed_node = node_clone.borrow_mut();
+        let children: &Vec<Rc<RefCell<dyn ParentNode>>> = borrowed_node.children();
 
         // Return the node itself if it has no children
         if children.is_empty() {
-            return self.node.clone();
+            return node_clone.clone();
         }
 
         // Variable to store the total amount retrieved from a node's children
         let mut total_from_children = borrowed_node.amount();
 
         for child_node in children.iter() {
-            self.node = self.aggregate();
-            total_from_children += child_node.borrow().amount();
+            self.node = child_node.clone();
+            let result_node: Rc<RefCell<dyn ParentNode>> = self.aggregate();
+            total_from_children += result_node.borrow().amount();
         }
 
-        {
-            let mut mutable_node = self.node.borrow_mut();
-            mutable_node.set_amount(total_from_children);
-        }
+        borrowed_node.set_amount(total_from_children);
+        // {
+        //     let mut mutable_node = node_clone.borrow_mut();
+        //     mutable_node.set_amount(total_from_children);
+        // }
 
-        self.node.clone()
+        node_clone.clone()
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::{
-        AccountNode, AccountTagNode, ActionType, ParentNodeT, PrimaryAccountType, RootNode,
-        RootNodeRef, DFS,
+        AccountNode, AccountTagNode, ActionType, AmountAggregator, ParentNodeT, PrimaryAccountType,
+        RootNode, RootNodeRef, DFS,
     };
     use std::{cell::RefCell, rc::Rc};
 
-    ///
-    /// Test the DFS traversal of the accounting tree or part thereof
-    ///
-    #[test]
-    fn test_dfs_traversal() {
+    fn get_root_node() -> RootNodeRef {
         // Create a tree instance
         let root: RootNodeRef = Rc::new(RefCell::new(RootNode::new()));
 
@@ -917,11 +915,21 @@ mod test {
             Some(current_assets_node.clone()),
         )));
 
+        {
+            let mut cash_mut_ref = cash.as_ref().borrow_mut();
+            cash_mut_ref.set_amount(1200f64);
+        }
+
         let inventory = Rc::new(RefCell::new(AccountNode::new(
             3,
             "Inventory",
             Some(current_assets_node.clone()),
         )));
+
+        {
+            let mut inventory_mut_ref = inventory.as_ref().borrow_mut();
+            inventory_mut_ref.set_amount(800f64);
+        }
 
         // The accounts payable node
         let short_term_loan = Rc::new(RefCell::new(AccountNode::new(
@@ -930,6 +938,11 @@ mod test {
             Some(current_liabilities_node.clone()),
         )));
 
+        {
+            let mut st_loan_mut_ref = short_term_loan.as_ref().borrow_mut();
+            st_loan_mut_ref.set_amount(700f64);
+        }
+
         // Revenue and cost of sales nodes
         let revenue = Rc::new(RefCell::new(AccountNode::new(
             3,
@@ -937,11 +950,21 @@ mod test {
             Some(retained_earnings_node.clone()),
         )));
 
+        {
+            let mut revenue_mut_ref = revenue.as_ref().borrow_mut();
+            revenue_mut_ref.set_amount(500f64);
+        }
+
         let cost_of_sales = Rc::new(RefCell::new(AccountNode::new(
             3,
             "Cost of Sales",
             Some(retained_earnings_node.clone()),
         )));
+
+        {
+            let mut cos_mut_ref = cost_of_sales.as_ref().borrow_mut();
+            cos_mut_ref.set_amount(800f64);
+        }
 
         {
             let mut current_asset_n = current_assets_node.as_ref().borrow_mut();
@@ -955,6 +978,16 @@ mod test {
             let mut current_liabilities_n = current_liabilities_node.as_ref().borrow_mut();
             current_liabilities_n.add_child(short_term_loan.clone());
         }
+
+        root
+    }
+
+    ///
+    /// Test the DFS traversal of the accounting tree or part thereof
+    ///
+    #[test]
+    fn test_dfs_traversal() {
+        let root = get_root_node().clone();
 
         let mut dfs = DFS::new(root.clone());
         let query = "Cost of Sales";
@@ -971,6 +1004,36 @@ mod test {
                 println!("Node with name: {:?} was found.", node_ref.name());
             }
         }
+    }
+
+    #[test]
+    fn test_amount_aggregator() {
+        let root = get_root_node().clone();
+
+        let mut ammount_aggregator = AmountAggregator::new(root.clone());
+        ammount_aggregator.aggregate();
+
+        let mut dfs = DFS::new(root.clone());
+        let query = "Owner's Equity";
+        let result = dfs.traverse(&query);
+
+        match result {
+            None => {
+                println!("{:?} was never found", query)
+            }
+            Some(node) => {
+                let node_clone = node.clone();
+                let node_ref = node_clone.as_ref().borrow();
+
+                println!(
+                    "Node with name: {:?} was found has a subtotal of: {:?}",
+                    node_ref.name(),
+                    node_ref.amount()
+                );
+            }
+        }
+
+        assert_eq!(true, true);
     }
 }
 
